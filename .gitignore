@@ -1,1 +1,6 @@
 node_modules
+
+# AI 编辑器配置（与 rules/ 内容重复，无需跟踪）
+.codebuddy/
+.rules/
+.workbuddy/
