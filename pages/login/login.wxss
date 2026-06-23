@@ -1,0 +1,57 @@
+/**
+ * 登录页样式（Vant版 + 安全区适配）
+ */
+.login-container {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  padding: 0 60rpx;
+  box-sizing: border-box;
+}
+
+/* Logo区域 */
+.logo-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 80rpx;
+}
+
+.logo-text {
+  font-size: 44rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 16rpx;
+}
+
+.logo-desc {
+  font-size: 26rpx;
+  color: #999;
+}
+
+/* 登录按钮区域 */
+.login-btn-area {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.skip-login {
+  margin-top: 40rpx;
+  padding: 20rpx;
+  color: #999;
+  font-size: 28rpx;
+}
+
+/* 协议提示 */
+.agreement-text {
+  position: absolute;
+  bottom: calc(60rpx + env(safe-area-inset-bottom));
+  font-size: 22rpx;
+  color: #bbb;
+}

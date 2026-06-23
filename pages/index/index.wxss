@@ -1,0 +1,82 @@
+/**
+ * 首页样式（Vant版）
+ */
+page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.index-container {
+  flex: 1;
+  background: #f5f5f5;
+  padding: 20rpx;
+  overflow-y: auto;
+}
+
+/* 穿搭瀑布流 - 双列 */
+.outfit-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20rpx;
+}
+
+.outfit-card {
+  width: calc(50% - 10rpx);
+  background: #fff;
+  border-radius: 16rpx;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+}
+
+.card-img {
+  width: 100%;
+  height: 380rpx;
+  display: block;
+}
+
+.card-info {
+  padding: 16rpx;
+}
+
+.card-title {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #333;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 10rpx;
+}
+
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+/* 锁定标识 */
+.card-lock {
+  position: absolute;
+  top: 10rpx;
+  right: 10rpx;
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 底部加载 */
+.load-more {
+  text-align: center;
+  padding: 30rpx 0;
+}
+
+.no-more {
+  color: #999;
+  font-size: 26rpx;
+}

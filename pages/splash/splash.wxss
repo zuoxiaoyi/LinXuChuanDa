@@ -1,0 +1,67 @@
+/**
+ * 开屏页样式（原型图版 / Skyline适配）
+ * 背景图使用云存储 fileID + image标签，避免CSS background-image限制
+ */
+.splash-container {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+  background-color: #f5efe0;
+}
+
+/* 全屏背景图 - 绝对定位填满容器 */
+.splash-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* 跳过按钮 - 右上区域，避开微信胶囊(约190rpx宽,87rpx高) */
+.skip-area {
+  width: 203rpx;
+  height: 78rpx;
+  line-height: 68rpx;
+  text-align: center;
+  position: absolute;
+  top: 200rpx;
+  right: 60rpx;
+  z-index: 10;
+  background: rgba(247, 231, 211, .85);
+  border-radius: 40rpx;
+}
+
+/* 跳过文字 */
+.skip-text {
+  font-size: 32rpx;
+  color: rgba(0, 0, 0, .5);
+  font-weight: 500;
+}
+
+/* 底部标题文案 */
+.bottom-text {
+  position: absolute;
+  bottom: 120rpx;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 5;
+}
+
+.bottom-title {
+  font-size: 44rpx;
+  font-weight: bold;
+  color: #B99C6B;
+  letter-spacing: 8rpx;
+  margin-bottom: 16rpx;
+}
+
+.bottom-subtitle {
+  font-size: 28rpx;
+  color: rgba(185, 156, 107, .85);
+  letter-spacing: 4rpx;
+}

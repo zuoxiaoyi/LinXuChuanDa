@@ -1,0 +1,63 @@
+<!--
+  个人中心页模板（Vant版）
+  布局：头部用户信息 + 积分签到卡片 + 快捷入口 + 收藏列表
+-->
+<view class="mine-container">
+  <!-- 头部用户信息 -->
+  <view class="mine-header">
+    <!-- 未登录 -->
+    <view class="header-login-hint" wx:if="{{!userInfo}}" bindtap="onGoLogin">
+      <view class="avatar-placeholder">
+        <van-icon name="user-o" size="48rpx" color="#fff" />
+      </view>
+      <text class="login-text">点击登录</text>
+    </view>
+
+    <!-- 已登录 -->
+    <view class="header-user" wx:else>
+      <image class="user-avatar" src="{{userInfo.avatarUrl}}" mode="aspectFill" />
+      <text class="user-name">{{userInfo.nickName}}</text>
+    </view>
+  </view>
+
+  <!-- 积分签到卡片 -->
+  <view class="points-card">
+    <view class="points-info">
+      <text class="points-num">{{points}}</text>
+      <text class="points-label">当前积分</text>
+    </view>
+    <van-button
+      round
+      size="small"
+      color="{{todayChecked ? '#ccc' : '#667eea'}}"
+      disabled="{{todayChecked}}"
+      custom-style="font-size:26rpx;"
+      bind:click="onCheckIn"
+    >
+      {{todayChecked ? '已签到' : '签到领积分'}}
+    </van-button>
+  </view>
+
+  <!-- 收藏列表 -->
+  <view class="collection-section">
+    <text class="section-title">我的收藏</text>
+
+    <view class="empty-tip" wx:if="{{collectedList.length === 0}}">
+      <van-icon name="like-o" size="80rpx" color="#ddd" />
+      <text>暂无收藏，快去发现穿搭吧</text>
+    </view>
+
+    <view class="collection-grid" wx:else>
+      <view
+        class="collection-item"
+        wx:for="{{collectedList}}"
+        wx:key="_id"
+        data-id="{{item._id}}"
+        bindtap="onGoDetail"
+      >
+        <image class="collection-img" src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
+        <text class="collection-title">{{item.title}}</text>
+      </view>
+    </view>
+  </view>
+</view>

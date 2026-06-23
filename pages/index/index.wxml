@@ -1,0 +1,50 @@
+<!--
+  首页模板（Vant版）
+  布局：导航栏 + 穿搭瀑布流双列卡片
+-->
+<navigation-bar title="灵序穿搭" back="{{false}}" color="white" background="#667eea"></navigation-bar>
+
+<view class="index-container">
+  <!-- 穿搭瀑布流 - 双列布局 -->
+  <view class="outfit-grid">
+    <view
+      class="outfit-card"
+      wx:for="{{outfitList}}"
+      wx:key="_id"
+      data-id="{{item._id}}"
+      bindtap="onGoDetail"
+    >
+      <!-- 封面图 -->
+      <image class="card-img" src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
+
+      <!-- 卡片信息 -->
+      <view class="card-info">
+        <text class="card-title">{{item.title}}</text>
+        <view class="card-tags">
+          <van-tag
+            wx:for="{{item.tags}}"
+            wx:for-item="tag"
+            wx:key="*this"
+            type="primary"
+            size="mini"
+            custom-style="margin-right:8rpx;margin-bottom:6rpx;"
+          >
+            {{tag}}
+          </van-tag>
+        </view>
+      </view>
+
+      <!-- 锁定标识 -->
+      <view class="card-lock" wx:if="{{item.isLocked}}">
+        <van-icon name="lock" size="28rpx" color="#fff" />
+      </view>
+    </view>
+  </view>
+
+  <!-- 加载状态 -->
+  <view class="load-more">
+    <van-loading wx:if="{{loading}}" size="28rpx" color="#999">加载中...</van-loading>
+    <text wx:elif="{{!hasMore}}" class="no-more">—— 没有更多了 ——</text>
+  </view>
+</view>
+

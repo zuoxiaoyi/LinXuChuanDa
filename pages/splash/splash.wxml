@@ -1,0 +1,19 @@
+<!--
+  开屏广告页（原型图版 / 本地图片）
+  背景图用 image 标签 + aspectFill 全屏铺满
+-->
+<view class="splash-container">
+  <!-- 全屏背景图 -->
+  <image class="splash-bg" src="/images/splash/bg.png" mode="aspectFill" />
+
+  <!-- 跳过按钮 - 右上角，胶囊按钮下方 -->
+  <view class="skip-area" bindtap="onSkip">
+    <text class="skip-text">跳过{{countdown}}S</text>
+  </view>
+
+  <!-- 底部标题文案 -->
+  <view class="bottom-text">
+    <text class="bottom-title">灵序穿搭</text>
+    <text class="bottom-subtitle">穿出你的好运势</text>
+  </view>
+</view>

@@ -1,0 +1,36 @@
+<!--
+  登录页模板（Vant版）
+  布局：居中Logo + Vant按钮 + 跳过入口
+-->
+<view class="login-container">
+  <!-- Logo区域 -->
+  <view class="logo-area">
+    <text class="logo-text">灵序穿搭</text>
+    <text class="logo-desc">发现你的每日穿搭灵感</text>
+  </view>
+
+  <!-- 登录按钮区域 -->
+  <view class="login-btn-area">
+    <van-button
+      round
+      block
+      color="#667eea"
+      loading="{{loading}}"
+      disabled="{{!canLogin}}"
+      custom-style="height:90rpx;font-size:32rpx;font-weight:500;"
+      bind:click="onLogin"
+    >
+      微信一键登录
+    </van-button>
+
+    <!-- 游客模式 -->
+    <view class="skip-login" bindtap="onSkip">
+      <text>暂不登录，先看看</text>
+    </view>
+  </view>
+
+  <!-- 协议提示 -->
+  <view class="agreement-text">
+    <text>登录即表示同意《用户协议》和《隐私政策》</text>
+  </view>
+</view>

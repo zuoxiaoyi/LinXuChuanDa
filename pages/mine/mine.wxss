@@ -1,0 +1,136 @@
+/**
+ * 个人中心页样式（Vant版）
+ */
+.mine-container {
+  min-height: 100vh;
+  background: #f5f5f5;
+}
+
+/* 头部 */
+.mine-header {
+  padding: 80rpx 40rpx 50rpx;
+  background-color: #667eea;
+  display: flex;
+  align-items: center;
+}
+
+.header-login-hint {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.avatar-placeholder {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-text {
+  font-size: 32rpx;
+  color: #fff;
+}
+
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.user-avatar {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  border: 4rpx solid rgba(255, 255, 255, 0.5);
+}
+
+.user-name {
+  font-size: 32rpx;
+  color: #fff;
+  font-weight: 500;
+}
+
+/* 积分签到卡片 */
+.points-card {
+  margin: -30rpx 30rpx 0;
+  padding: 30rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
+}
+
+.points-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.points-num {
+  font-size: 48rpx;
+  font-weight: bold;
+  color: #667eea;
+}
+
+.points-label {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 4rpx;
+}
+
+/* 收藏列表 */
+.collection-section {
+  padding: 30rpx;
+  margin-top: 20rpx;
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+  display: block;
+  margin-bottom: 20rpx;
+}
+
+.empty-tip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 80rpx 0;
+  color: #999;
+  font-size: 28rpx;
+  gap: 20rpx;
+}
+
+.collection-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20rpx;
+}
+
+.collection-item {
+  width: calc(50% - 10rpx);
+  background: #fff;
+  border-radius: 12rpx;
+  overflow: hidden;
+}
+
+.collection-img {
+  width: 100%;
+  height: 300rpx;
+}
+
+.collection-title {
+  display: block;
+  padding: 16rpx;
+  font-size: 26rpx;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
