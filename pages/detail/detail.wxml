@@ -1,96 +1,116 @@
-<!--
-  穿搭详情页模板（Vant版）
-  布局：顶部大图 + 标签 + 描述 + 单品列表 + 底栏操作
--->
-<view class="detail-container" wx:if="{{!loading && outfit}}">
-  <!-- 顶部穿搭大图 -->
-  <view class="detail-hero">
-    <image class="hero-img" src="{{outfit.coverUrl}}" mode="aspectFill" />
-    <!-- 锁定蒙层 -->
-    <van-overlay show="{{isLocked}}" z-index="10">
-      <view class="lock-overlay">
-        <van-icon name="lock" size="60rpx" color="#fff" />
-        <text class="lock-text">观看广告或使用积分解锁更多内容</text>
-      </view>
-    </van-overlay>
-  </view>
+<navigation-bar
+  title="穿搭详情"
+  back="{{true}}"
+  color="#3d3529"
+  background="#fffdf7"
+></navigation-bar>
 
-  <!-- 穿搭信息 -->
-  <view class="detail-info">
-    <text class="detail-title">{{outfit.title}}</text>
+<scroll-view
+  class="page-scroll"
+  scroll-y
+  enhanced
+  bounces="{{false}}"
+  show-scrollbar="{{false}}"
+  enable-back-to-top
+>
+<view class="detail-page">
+  <image class="paper-bg" src="/images/common/bg.jpg" mode="aspectFill" />
 
-    <!-- 标签 -->
-    <view class="tag-list">
-      <van-tag
-        wx:for="{{outfit.tags}}"
-        wx:key="*this"
-        type="primary"
-        size="medium"
-        custom-style="margin-right:12rpx;margin-bottom:8rpx;"
-      >
-        {{item}}
-      </van-tag>
+  <view class="detail-content">
+    <view class="date-heading">
+      <text>{{dateText}}</text>
+      <text class="date-subtitle">今日场景穿搭</text>
     </view>
 
-    <!-- 描述 -->
-    <text class="detail-desc">{{outfit.description}}</text>
-  </view>
-
-  <!-- 单品列表 -->
-  <view class="items-section" wx:if="{{!isLocked}}">
-    <text class="section-title">穿搭单品</text>
-    <view class="item-card" wx:for="{{outfit.items}}" wx:key="_id">
-      <image class="item-img" src="{{item.imageUrl}}" mode="aspectFill" />
-      <view class="item-info">
-        <text class="item-name">{{item.name}}</text>
-        <text class="item-brand">{{item.brand}}</text>
-      </view>
-      <van-icon name="arrow" size="28rpx" color="#ccc" />
+    <view class="state-container" wx:if="{{loading}}">
+      <van-loading size="46rpx" color="#b08a4d" vertical>加载穿搭方案...</van-loading>
     </view>
+
+    <view class="state-container" wx:elif="{{error}}">
+      <van-icon name="warning-o" size="58rpx" color="#b08a4d" />
+      <text>{{error}}</text>
+      <button class="retry-button" bindtap="onRetry">重新加载</button>
+    </view>
+
+    <view class="state-container" wx:elif="{{bestList.length === 0 && secondList.length === 0}}">
+      <van-icon name="photo-o" size="60rpx" color="#c8b999" />
+      <text>当天还没有配置穿搭方案</text>
+    </view>
+
+    <block wx:else>
+      <view class="recommend-group">
+        <view class="group-title">
+          <text class="rank-name">最佳</text>
+          <text class="rank-description">优先推荐的场景搭配</text>
+        </view>
+        <view class="outfit-grid">
+          <view class="outfit-card" wx:for="{{bestList}}" wx:key="_id">
+            <image
+              class="outfit-image"
+              wx:if="{{item.coverUrl}}"
+              src="{{item.coverUrl}}"
+              mode="aspectFill"
+              lazy-load
+            />
+            <view class="image-placeholder" wx:else>
+              <van-icon name="photo-o" size="48rpx" color="#c9bfae" />
+            </view>
+            <text class="scene-name">{{item.sceneName}}</text>
+            <text class="outfit-title">{{item.title}}</text>
+            <view
+              class="collect-button {{item.isCollected ? 'is-collected' : ''}}"
+              data-id="{{item._id}}"
+              catchtap="onToggleCollect"
+            >
+              <van-icon name="{{item.isCollected ? 'star' : 'star-o'}}" size="30rpx" />
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="recommend-group second-group">
+        <view class="group-title">
+          <text class="rank-name">次佳</text>
+          <text class="rank-description">同样适合的备选搭配</text>
+        </view>
+        <view class="outfit-grid">
+          <view class="outfit-card" wx:for="{{secondList}}" wx:key="_id">
+            <image
+              class="outfit-image"
+              wx:if="{{item.coverUrl}}"
+              src="{{item.coverUrl}}"
+              mode="aspectFill"
+              lazy-load
+            />
+            <view class="image-placeholder" wx:else>
+              <van-icon name="photo-o" size="48rpx" color="#c9bfae" />
+            </view>
+            <text class="scene-name">{{item.sceneName}}</text>
+            <text class="outfit-title">{{item.title}}</text>
+            <view
+              class="collect-button {{item.isCollected ? 'is-collected' : ''}}"
+              data-id="{{item._id}}"
+              catchtap="onToggleCollect"
+            >
+              <van-icon name="{{item.isCollected ? 'star' : 'star-o'}}" size="30rpx" />
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="accessory-section">
+        <text class="accessory-heading">幸运配饰</text>
+        <view class="accessory-list">
+          <view class="accessory-item" wx:for="{{accessories}}" wx:key="id">
+            <text class="accessory-symbol">{{item.symbol}}</text>
+            <text class="accessory-name">{{item.name}}</text>
+            <text class="accessory-description">{{item.description}}</text>
+          </view>
+        </view>
+      </view>
+    </block>
   </view>
 </view>
+</scroll-view>
 
-<!-- 底部操作栏 -->
-<view class="bottom-bar" wx:if="{{!loading && outfit}}">
-  <!-- 锁定状态：展示解锁按钮 -->
-  <block wx:if="{{isLocked}}">
-    <van-button
-      round
-      block
-      color="#667eea"
-      custom-style="height:80rpx;font-size:28rpx;"
-      bind:click="onWatchAd"
-    >
-      看广告解锁
-    </van-button>
-    <van-button
-      round
-      block
-      plain
-      type="primary"
-      custom-style="height:80rpx;font-size:28rpx;margin-left:20rpx;"
-      bind:click="onUnlockByPoints"
-    >
-      积分解锁
-    </van-button>
-  </block>
-
-  <!-- 非锁定状态 -->
-  <block wx:else>
-    <van-button
-      round
-      block
-      icon="{{isCollected ? 'like' : 'like-o'}}"
-      type="{{isCollected ? 'danger' : 'default'}}"
-      custom-style="height:80rpx;font-size:28rpx;"
-      bind:click="onToggleCollect"
-    >
-      {{isCollected ? '已收藏' : '收藏'}}
-    </van-button>
-  </block>
-</view>
-
-<!-- 加载中 -->
-<view class="loading-container" wx:if="{{loading}}">
-  <van-loading size="48rpx" color="#667eea" vertical>加载中...</van-loading>
-</view>
+<bottom-nav current=""></bottom-nav>

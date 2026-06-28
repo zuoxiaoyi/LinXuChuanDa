@@ -1,50 +1,128 @@
-<!--
-  首页模板（Vant版）
-  布局：导航栏 + 穿搭瀑布流双列卡片
--->
-<navigation-bar title="灵序穿搭" back="{{false}}" color="white" background="#667eea"></navigation-bar>
+<navigation-bar
+  title="灵序穿搭"
+  back="{{false}}"
+  color="#3d3529"
+  background="#fffdf7"
+></navigation-bar>
 
-<view class="index-container">
-  <!-- 穿搭瀑布流 - 双列布局 -->
-  <view class="outfit-grid">
-    <view
-      class="outfit-card"
-      wx:for="{{outfitList}}"
-      wx:key="_id"
-      data-id="{{item._id}}"
-      bindtap="onGoDetail"
-    >
-      <!-- 封面图 -->
-      <image class="card-img" src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
+<scroll-view
+  class="page-scroll"
+  scroll-y
+  enhanced
+  bounces="{{false}}"
+  show-scrollbar="{{false}}"
+  enable-back-to-top
+>
+<view class="page-shell">
+  <image class="paper-bg" src="/images/common/bg.jpg" mode="aspectFill" />
 
-      <!-- 卡片信息 -->
-      <view class="card-info">
-        <text class="card-title">{{item.title}}</text>
-        <view class="card-tags">
-          <van-tag
-            wx:for="{{item.tags}}"
-            wx:for-item="tag"
-            wx:key="*this"
-            type="primary"
-            size="mini"
-            custom-style="margin-right:8rpx;margin-bottom:6rpx;"
-          >
-            {{tag}}
-          </van-tag>
+  <view class="content">
+    <view class="top-row">
+      <view>
+        <view class="date-heading">
+          <text class="date-text">{{selectedDay.dateText}}</text>
+          <text class="week-text">{{selectedDay.weekText}}</text>
+        </view>
+        <picker mode="region" value="{{regionValue}}" bindchange="onRegionChange">
+          <view class="city-picker">
+            <van-icon name="location-o" size="28rpx" />
+            <text>{{cityName}}</text>
+            <text class="change-city">切换城市</text>
+          </view>
+        </picker>
+      </view>
+
+      <view class="account-entry" bindtap="onGoLogin">
+        <van-icon name="{{isLogin ? 'user-circle-o' : 'user-o'}}" size="38rpx" />
+        <text>{{isLogin ? '我的' : '登录'}}</text>
+      </view>
+    </view>
+
+    <view class="color-panel">
+      <view class="color-row">
+        <text class="color-label best">首选颜色</text>
+        <view class="color-tags">
+          <text class="color-tag" wx:for="{{selectedDay.primaryColors}}" wx:key="*this">{{item}}</text>
+        </view>
+      </view>
+      <view class="color-row">
+        <text class="color-label second">次选颜色</text>
+        <view class="color-tags">
+          <text class="color-tag" wx:for="{{selectedDay.secondaryColors}}" wx:key="*this">{{item}}</text>
+        </view>
+      </view>
+      <view class="color-row">
+        <text class="color-label avoid">不建议色</text>
+        <view class="color-tags">
+          <text class="color-tag" wx:for="{{selectedDay.avoidColors}}" wx:key="*this">{{item}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="action-row">
+      <button class="outline-button share-button" open-type="share">
+        <van-icon name="share-o" size="30rpx" />
+        <text>分享好友</text>
+      </button>
+      <view class="outline-button" bindtap="onGoDetail">
+        <van-icon name="notes-o" size="30rpx" />
+        <text>穿搭详情</text>
+      </view>
+    </view>
+
+    <view class="date-strip">
+      <view class="date-strip-inner">
+        <view
+          class="date-item {{selectedDateIndex === item.index ? 'is-active' : ''}} {{item.isLocked ? 'is-locked' : ''}}"
+          wx:for="{{dateList}}"
+          wx:key="index"
+          data-index="{{item.index}}"
+          bindtap="onSelectDate"
+        >
+          <text class="date-label">{{item.label || item.week}}</text>
+          <text class="date-day">{{item.day}}</text>
+          <van-icon wx:if="{{item.isLocked}}" name="lock" size="20rpx" />
+        </view>
+      </view>
+    </view>
+
+    <view class="weather-card">
+      <view class="weather-title">
+        <van-icon name="location-o" size="30rpx" />
+        <text>{{cityName}}</text>
+        <text class="weather-status">{{weather.status}}</text>
+      </view>
+      <view class="weather-body">
+        <text class="weather-icon">☀️</text>
+        <text class="weather-temp">{{weather.temperature}}</text>
+        <view class="weather-meta">
+          <text>{{weather.condition}}</text>
+          <text>风力 {{weather.wind}}</text>
+          <text>紫外线 {{weather.ultraviolet}}</text>
         </view>
       </view>
 
-      <!-- 锁定标识 -->
-      <view class="card-lock" wx:if="{{item.isLocked}}">
-        <van-icon name="lock" size="28rpx" color="#fff" />
+      <view class="advice-block">
+        <view class="advice-title">
+          <van-icon name="orders-o" size="30rpx" color="#a77d3f" />
+          <text>穿衣建议</text>
+        </view>
+        <text class="advice-text">{{weather.dressingAdvice}}</text>
+        <view class="advice-tags" wx:if="{{weather.dressingTags.length}}">
+          <text wx:for="{{weather.dressingTags}}" wx:key="*this">{{item}}</text>
+        </view>
+      </view>
+
+      <view class="advice-block skincare-block">
+        <view class="advice-title">
+          <van-icon name="flower-o" size="30rpx" color="#a77d3f" />
+          <text>护肤建议</text>
+        </view>
+        <text class="advice-text">{{weather.skincareAdvice}}</text>
       </view>
     </view>
   </view>
-
-  <!-- 加载状态 -->
-  <view class="load-more">
-    <van-loading wx:if="{{loading}}" size="28rpx" color="#999">加载中...</van-loading>
-    <text wx:elif="{{!hasMore}}" class="no-more">—— 没有更多了 ——</text>
-  </view>
 </view>
+</scroll-view>
 
+<bottom-nav current="home"></bottom-nav>

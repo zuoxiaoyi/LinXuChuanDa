@@ -1,0 +1,18 @@
+<view class="nav-shell">
+  <view
+    class="nav-item {{current === 'home' ? 'is-active' : ''}}"
+    data-page="home"
+    bindtap="onNavigate"
+  >
+    <van-icon name="wap-home-o" size="42rpx" />
+    <text>首页</text>
+  </view>
+  <view
+    class="nav-item {{current === 'mine' ? 'is-active' : ''}}"
+    data-page="mine"
+    bindtap="onNavigate"
+  >
+    <van-icon name="user-o" size="42rpx" />
+    <text>我的</text>
+  </view>
+</view>

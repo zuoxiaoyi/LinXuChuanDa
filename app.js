@@ -3,8 +3,7 @@
  * 功能：初始化云开发环境、全局数据管理
  */
 // 云开发初始化
-// 注意：env 参数需替换为你的云环境ID
-const CLOUD_ENV = 'cloudbase-d7gr1giub2c847b49' // TODO: 替换为实际云环境ID
+const CLOUD_ENV = 'cloudbase-d7gr1giub2c847b49'
 
 App({
   /** 全局数据 */
@@ -12,7 +11,9 @@ App({
     userInfo: null,    // 用户信息
     isLogin: false,    // 登录状态
     points: 0,         // 当前积分
-    openid: ''         // 用户openid
+    openid: '',        // 用户openid
+    // 在公众平台创建激励视频广告位后填写，例如 adunit-xxxxxxxx
+    rewardedVideoAdUnitId: ''
   },
 
   onLaunch() {
@@ -36,27 +37,6 @@ App({
     // 检查登录状态
     this.checkLoginStatus()
 
-    // 【临时】首次启动自动填充测试数据（仅执行一次）
-    this.seedDataOnce()
-  },
-
-  /**
-   * 【临时函数】首次启动自动调用 seedOutfits 填充测试数据
-   * 数据插入成功后会在本地标记，后续不再重复执行
-   * 正式上线前请删除此函数及其调用
-   */
-  seedDataOnce() {
-    const seeded = wx.getStorageSync('_seed_done')
-    if (seeded) return
-
-    wx.cloud.callFunction({ name: 'seedOutfits' }).then(res => {
-      if (res.result && res.result.success) {
-        wx.setStorageSync('_seed_done', true)
-        console.log('测试数据填充成功:', res.result.count, '条')
-      }
-    }).catch(err => {
-      console.warn('测试数据填充失败（可能已存在数据）:', err.message)
-    })
   },
 
   /** 检查本地登录状态 */
@@ -65,6 +45,9 @@ App({
     if (userInfo) {
       this.globalData.userInfo = userInfo
       this.globalData.isLogin = true
+    } else {
+      this.globalData.userInfo = null
+      this.globalData.isLogin = false
     }
   },
 

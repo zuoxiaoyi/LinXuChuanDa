@@ -9,8 +9,8 @@ const db = cloud.database()
 
 exports.main = async (event, context) => {
   const { OPENID } = cloud.getWXContext()
-  const today = new Date()
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  const today = new Date(Date.now() + 8 * 60 * 60 * 1000)
+  const todayStr = `${today.getUTCFullYear()}-${String(today.getUTCMonth() + 1).padStart(2, '0')}-${String(today.getUTCDate()).padStart(2, '0')}`
 
   try {
     // 查询用户信息
@@ -48,10 +48,18 @@ exports.main = async (event, context) => {
     return {
       user,
       todayChecked: checkinRes.data.length > 0,
+      todayBonusClaimed: checkinRes.data.length > 0
+        ? !!checkinRes.data[0].bonusClaimed
+        : false,
       collections
     }
   } catch (err) {
     console.error('获取用户资料失败:', err)
-    return { user: null, todayChecked: false, collections: [] }
+    return {
+      user: null,
+      todayChecked: false,
+      todayBonusClaimed: false,
+      collections: []
+    }
   }
 }

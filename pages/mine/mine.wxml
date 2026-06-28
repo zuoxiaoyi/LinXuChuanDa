@@ -1,63 +1,121 @@
-<!--
-  个人中心页模板（Vant版）
-  布局：头部用户信息 + 积分签到卡片 + 快捷入口 + 收藏列表
--->
+<navigation-bar
+  title="灵序穿搭"
+  back="{{false}}"
+  color="#3d3529"
+  background="#fffdf7"
+></navigation-bar>
+
+<scroll-view
+  class="page-scroll"
+  scroll-y
+  enhanced
+  bounces="{{false}}"
+  show-scrollbar="{{false}}"
+  enable-back-to-top
+>
 <view class="mine-container">
-  <!-- 头部用户信息 -->
-  <view class="mine-header">
-    <!-- 未登录 -->
-    <view class="header-login-hint" wx:if="{{!userInfo}}" bindtap="onGoLogin">
-      <view class="avatar-placeholder">
-        <van-icon name="user-o" size="48rpx" color="#fff" />
+  <image class="paper-bg" src="/images/common/bg.jpg" mode="aspectFill" />
+
+  <view class="mine-content">
+    <view class="profile-card">
+      <view class="header-login-hint" wx:if="{{!isLogin}}" bindtap="onGoLogin">
+        <view class="avatar-placeholder">
+          <van-icon name="user-o" size="48rpx" color="#9b743a" />
+        </view>
+        <view class="login-copy">
+          <text class="login-title">点击登录</text>
+          <text class="login-subtitle">登录后同步积分与收藏</text>
+        </view>
+        <van-icon name="arrow" size="30rpx" color="#b7a98e" />
       </view>
-      <text class="login-text">点击登录</text>
+
+      <view class="header-user" wx:else>
+        <image class="user-avatar" src="{{userInfo.avatarUrl}}" mode="aspectFill" />
+        <view class="user-copy">
+          <text class="user-name">{{userInfo.nickName || '微信用户'}}</text>
+          <text class="user-id">免费版 · 灵序用户</text>
+        </view>
+        <text class="logout-link" bindtap="onLogout">退出</text>
+      </view>
     </view>
 
-    <!-- 已登录 -->
-    <view class="header-user" wx:else>
-      <image class="user-avatar" src="{{userInfo.avatarUrl}}" mode="aspectFill" />
-      <text class="user-name">{{userInfo.nickName}}</text>
-    </view>
-  </view>
-
-  <!-- 积分签到卡片 -->
-  <view class="points-card">
-    <view class="points-info">
-      <text class="points-num">{{points}}</text>
-      <text class="points-label">当前积分</text>
-    </view>
-    <van-button
-      round
-      size="small"
-      color="{{todayChecked ? '#ccc' : '#667eea'}}"
-      disabled="{{todayChecked}}"
-      custom-style="font-size:26rpx;"
-      bind:click="onCheckIn"
-    >
-      {{todayChecked ? '已签到' : '签到领积分'}}
-    </van-button>
-  </view>
-
-  <!-- 收藏列表 -->
-  <view class="collection-section">
-    <text class="section-title">我的收藏</text>
-
-    <view class="empty-tip" wx:if="{{collectedList.length === 0}}">
-      <van-icon name="like-o" size="80rpx" color="#ddd" />
-      <text>暂无收藏，快去发现穿搭吧</text>
+    <view class="points-card">
+      <view class="points-info">
+        <text class="points-num">{{points}}</text>
+        <text class="points-label">当前积分</text>
+      </view>
+      <view class="checkin-copy">
+        <text class="checkin-title">每日签到</text>
+        <text class="checkin-subtitle">签到+1，观看广告可抽2～5倍积分</text>
+      </view>
+      <view class="checkin-actions">
+        <van-button
+          round
+          size="small"
+          color="{{todayChecked ? '#c8c1b3' : '#a77d3f'}}"
+          disabled="{{todayChecked}}"
+          bind:click="onCheckIn"
+        >
+          {{todayChecked ? '已签到' : (isLogin ? '签到 +1' : '登录签到')}}
+        </van-button>
+        <text
+          class="bonus-entry"
+          wx:if="{{todayChecked && !todayBonusClaimed}}"
+          bindtap="onWatchCheckInAd"
+        >
+          看广告翻倍
+        </text>
+        <text class="bonus-claimed" wx:elif="{{todayBonusClaimed}}">翻倍已领</text>
+      </view>
     </view>
 
-    <view class="collection-grid" wx:else>
-      <view
-        class="collection-item"
-        wx:for="{{collectedList}}"
-        wx:key="_id"
-        data-id="{{item._id}}"
-        bindtap="onGoDetail"
-      >
-        <image class="collection-img" src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
-        <text class="collection-title">{{item.title}}</text>
+    <view class="intro-card">
+      <text class="card-title">灵序穿搭简介</text>
+      <text class="intro-text">{{introText}}</text>
+    </view>
+
+    <view class="state-card" wx:if="{{loading}}">
+      <van-loading size="42rpx" color="#b08a4d" vertical>正在加载个人资料...</van-loading>
+    </view>
+
+    <view class="state-card" wx:elif="{{error}}">
+      <van-icon name="warning-o" size="54rpx" color="#b08a4d" />
+      <text>{{error}}</text>
+      <button class="retry-button" bindtap="onRetry">重新加载</button>
+    </view>
+
+    <view class="collection-section" wx:else>
+      <view class="section-heading">
+        <text class="card-title">我的收藏</text>
+        <text class="collection-count">{{collectedList.length}} 套</text>
+      </view>
+
+      <view class="empty-tip" wx:if="{{!isLogin}}">
+        <van-icon name="like-o" size="68rpx" color="#d2c6ad" />
+        <text>登录后查看收藏的单套穿搭</text>
+        <button class="login-button" bindtap="onGoLogin">去登录</button>
+      </view>
+
+      <view class="empty-tip" wx:elif="{{collectedList.length === 0}}">
+        <van-icon name="like-o" size="68rpx" color="#d2c6ad" />
+        <text>暂无收藏，去首页发现喜欢的穿搭吧</text>
+      </view>
+
+      <view class="collection-grid" wx:else>
+        <view
+          class="collection-item"
+          wx:for="{{collectedList}}"
+          wx:key="_id"
+          data-id="{{item._id}}"
+          bindtap="onGoDetail"
+        >
+          <image class="collection-img" src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
+          <text class="collection-title">{{item.title}}</text>
+        </view>
       </view>
     </view>
   </view>
 </view>
+</scroll-view>
+
+<bottom-nav current="mine"></bottom-nav>

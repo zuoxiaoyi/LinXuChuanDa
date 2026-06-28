@@ -1,107 +1,125 @@
-/**
- * 穿搭详情页
- * 功能：展示穿搭详情、广告解锁、积分解锁、收藏
- */
+const { isLoggedIn, requireLogin } = require('../../utils/auth')
+
+const SCENES = ['通勤', '休闲', '度假', '约会', '日常', '轻运动']
+const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
+
 Page({
   data: {
-    outfitId: '',          // 穿搭ID
-    outfit: null,          // 穿搭详情数据
-    isCollected: false,    // 是否已收藏
-    isLocked: false,       // 是否锁定
-    currentDateIndex: 0,   // 当前查看的日期索引
-    loading: true          // 加载状态
+    dateIndex: 0,
+    dateText: '',
+    bestList: [],
+    secondList: [],
+    accessories: [
+      { id: 'wood', name: '黄水晶', description: '温暖明亮', symbol: '💎' },
+      { id: 'bracelet', name: '蜜蜡手串', description: '柔和沉稳', symbol: '📿' },
+      { id: 'jade', name: '和田玉镯', description: '清雅温润', symbol: '◯' }
+    ],
+    collectingId: '',
+    loading: true,
+    error: ''
   },
 
   onLoad(options) {
-    const { id } = options
-    if (id) {
-      this.setData({ outfitId: id })
-      this.fetchDetail(id)
+    const dateIndex = Math.max(0, Math.min(2, Number(options.dateIndex) || 0))
+    const redirectUrl = `/pages/detail/detail?dateIndex=${dateIndex}`
+    if (!isLoggedIn()) {
+      this.setData({ loading: false })
+      requireLogin('登录后才能查看完整穿搭详情', redirectUrl)
+      return
     }
+
+    const date = new Date()
+    date.setDate(date.getDate() + dateIndex)
+    this.setData({
+      dateIndex,
+      dateText: `${date.getMonth() + 1}月${date.getDate()}日 星期${WEEKDAYS[date.getDay()]}`
+    })
+    this.loadDailyOutfits()
   },
 
-  /** 获取穿搭详情 */
-  async fetchDetail(outfitId) {
+  async loadDailyOutfits() {
+    this.setData({ loading: true, error: '' })
     try {
-      this.setData({ loading: true })
-      const res = await wx.cloud.callFunction({
-        name: 'getOutfitDetail',
-        data: { outfitId }
+      const [outfitRes, profileRes] = await Promise.all([
+        wx.cloud.callFunction({
+          name: 'getOutfits',
+          data: { page: 1, pageSize: 6 }
+        }),
+        wx.cloud.callFunction({ name: 'getUserProfile' })
+      ])
+
+      const outfitList = outfitRes.result && Array.isArray(outfitRes.result.list)
+        ? outfitRes.result.list
+        : []
+      const collections = profileRes.result && Array.isArray(profileRes.result.collections)
+        ? profileRes.result.collections
+        : []
+      const collectedIds = new Set(collections.map(item => item._id))
+      const offset = outfitList.length ? this.data.dateIndex % outfitList.length : 0
+      const orderedList = outfitList.map((item, index) => {
+        const source = outfitList[(index + offset) % outfitList.length]
+        return {
+          ...source,
+          sceneName: SCENES[index],
+          isCollected: collectedIds.has(source._id)
+        }
       })
 
-      if (res.result) {
-        const { outfit, isCollected } = res.result
-        this.setData({
-          outfit,
-          isCollected: !!isCollected,
-          isLocked: outfit.isLocked || false
-        })
-      }
+      this.setData({
+        bestList: orderedList.slice(0, 3),
+        secondList: orderedList.slice(3, 6)
+      })
     } catch (err) {
-      console.error('获取详情失败:', err)
-      wx.showToast({ title: '加载失败', icon: 'none' })
+      console.error('加载每日穿搭详情失败:', err)
+      this.setData({ error: '穿搭详情加载失败，请稍后重试' })
     } finally {
       this.setData({ loading: false })
     }
   },
 
-  /** 收藏/取消收藏 */
-  async onToggleCollect() {
-    const { outfitId, isCollected } = this.data
+  async onToggleCollect(e) {
+    if (!requireLogin('登录后才能收藏单套穿搭')) return
+    const outfitId = e.currentTarget.dataset.id
+    const target = [...this.data.bestList, ...this.data.secondList]
+      .find(item => item._id === outfitId)
+    if (!target || this.data.collectingId) return
+
+    this.setData({ collectingId: outfitId })
     try {
       const res = await wx.cloud.callFunction({
         name: 'collectOutfit',
         data: {
           outfitId,
-          action: isCollected ? 'cancel' : 'collect'
+          action: target.isCollected ? 'cancel' : 'collect'
         }
       })
 
-      if (res.result && res.result.success) {
-        this.setData({ isCollected: !isCollected })
-        wx.showToast({
-          title: isCollected ? '已取消收藏' : '收藏成功',
-          icon: 'success'
-        })
+      if (!res.result || !res.result.success) {
+        throw new Error((res.result && res.result.msg) || '收藏失败')
       }
+
+      const updateList = list => list.map(item => (
+        item._id === outfitId
+          ? { ...item, isCollected: !item.isCollected }
+          : item
+      ))
+      this.setData({
+        bestList: updateList(this.data.bestList),
+        secondList: updateList(this.data.secondList)
+      })
+      wx.showToast({
+        title: target.isCollected ? '已取消收藏' : '收藏成功',
+        icon: 'success'
+      })
     } catch (err) {
       console.error('收藏操作失败:', err)
-      wx.showToast({ title: '操作失败', icon: 'none' })
+      wx.showToast({ title: err.message || '收藏失败', icon: 'none' })
+    } finally {
+      this.setData({ collectingId: '' })
     }
   },
 
-  /** 看广告解锁更多 */
-  onWatchAd() {
-    // TODO: 接入微信激励视频广告
-    wx.showToast({ title: '广告功能即将上线', icon: 'none' })
-  },
-
-  /** 积分解锁 */
-  async onUnlockByPoints() {
-    try {
-      const res = await wx.cloud.callFunction({
-        name: 'unlockOutfit',
-        data: { outfitId: this.data.outfitId }
-      })
-
-      if (res.result && res.result.success) {
-        this.setData({ isLocked: false })
-        wx.showToast({ title: '解锁成功', icon: 'success' })
-        // 刷新全局积分
-        const app = getApp()
-        app.globalData.points = res.result.remainPoints
-      } else {
-        wx.showToast({ title: res.result.msg || '积分不足', icon: 'none' })
-      }
-    } catch (err) {
-      console.error('解锁失败:', err)
-      wx.showToast({ title: '解锁失败', icon: 'none' })
-    }
-  },
-
-  /** 切换日期查看 */
-  onDateChange(e) {
-    const { index } = e.currentTarget.dataset
-    this.setData({ currentDateIndex: index })
+  onRetry() {
+    this.loadDailyOutfits()
   }
 })

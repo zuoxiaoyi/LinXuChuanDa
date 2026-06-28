@@ -23,6 +23,8 @@
       微信一键登录
     </van-button>
 
+    <text class="login-error" wx:if="{{error}}">{{error}}</text>
+
     <!-- 游客模式 -->
     <view class="skip-login" bindtap="onSkip">
       <text>暂不登录，先看看</text>

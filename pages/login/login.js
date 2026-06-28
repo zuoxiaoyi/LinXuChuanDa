@@ -10,13 +10,25 @@ Page({
     canLogin: true,       // 是否可点击登录
     loading: false,       // 加载状态
     avatarUrl: '',        // 默认头像
-    nickName: ''          // 默认昵称
+    nickName: '',         // 默认昵称
+    error: '',
+    redirectUrl: ''
   },
 
-  onLoad() {
-    // 如果已登录，直接跳转首页
+  onLoad(options) {
+    let redirectUrl = ''
+    if (options.redirect) {
+      try {
+        const decoded = decodeURIComponent(options.redirect)
+        if (decoded.startsWith('/pages/')) redirectUrl = decoded
+      } catch (err) {
+        console.warn('登录回跳地址解析失败:', err)
+      }
+    }
+    this.setData({ redirectUrl })
+
     if (app.globalData.isLogin) {
-      this.navigateBack()
+      this.completeLoginNavigation()
     }
   },
 
@@ -24,7 +36,7 @@ Page({
   async onLogin() {
     if (!this.data.canLogin || this.data.loading) return
 
-    this.setData({ loading: true, canLogin: false })
+    this.setData({ loading: true, canLogin: false, error: '' })
 
     try {
       // 1. 获取微信用户头像昵称（新版API需用户主动选择）
@@ -53,11 +65,17 @@ Page({
         wx.setStorageSync('userInfo', userInfo)
 
         wx.showToast({ title: '登录成功', icon: 'success' })
-        setTimeout(() => this.navigateBack(), 800)
+        setTimeout(() => this.completeLoginNavigation(), 800)
       }
     } catch (err) {
       console.error('登录失败:', err)
-      wx.showToast({ title: '登录失败，请重试', icon: 'none' })
+      const isCancel = err && /cancel|deny/i.test(err.errMsg || '')
+      this.setData({
+        error: isCancel ? '' : '登录失败，请检查网络后重试'
+      })
+      if (!isCancel) {
+        wx.showToast({ title: '登录失败，请重试', icon: 'none' })
+      }
     } finally {
       this.setData({ loading: false, canLogin: true })
     }
@@ -68,13 +86,24 @@ Page({
     this.navigateBack()
   },
 
+  completeLoginNavigation() {
+    if (this.data.redirectUrl) {
+      wx.redirectTo({
+        url: this.data.redirectUrl,
+        fail: () => wx.reLaunch({ url: '/pages/index/index' })
+      })
+      return
+    }
+    this.navigateBack()
+  },
+
   /** 返回上一页 */
   navigateBack() {
     const pages = getCurrentPages()
     if (pages.length > 1) {
       wx.navigateBack()
     } else {
-      wx.switchTab({ url: '/pages/index/index' })
+      wx.reLaunch({ url: '/pages/index/index' })
     }
   }
 })

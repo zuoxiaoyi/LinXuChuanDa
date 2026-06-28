@@ -48,6 +48,12 @@
   font-size: 28rpx;
 }
 
+.login-error {
+  margin-top: 24rpx;
+  color: #a45f54;
+  font-size: 24rpx;
+}
+
 /* 协议提示 */
 .agreement-text {
   position: absolute;
