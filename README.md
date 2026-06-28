@@ -1,7 +1,82 @@
-# CloudBase 项目
+# 灵序穿搭 🎯
 
-基于云开发 + CloudBase AI ToolKit 构建的项目
+一款基于**微信云开发**的穿搭推荐小程序——穿出你的好运势。
 
-[![Powered by CloudBase](https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/mcp/powered-by-cloudbase-badge.svg)](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit)  
+> 本项目全程使用 **DeepSeek V4** AI 模型辅助开发（Vibe Coding），编码在 **VS Code** 中完成，运行于**微信开发者工具**。
 
-> 本项目基于 [**CloudBase AI ToolKit**](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit) 开发，通过AI提示词和 MCP 协议+云开发，让开发更智能、更高效，支持AI生成全栈代码、一键部署至腾讯云开发（免服务器）、智能日志修复。
+---
+
+## 项目简介
+
+灵序穿搭为用户提供每日穿搭灵感推荐，支持浏览穿搭瀑布流、查看搭配详情与单品清单、收藏心仪穿搭、每日签到赚取积分、积分解锁付费内容等功能。
+
+## 技术栈
+
+| 层级 | 选型 |
+|------|------|
+| 前端框架 | 微信小程序原生 + Glass-Easel 组件框架 |
+| 渲染引擎 | Skyline 渲染 |
+| UI 组件库 | Vant Weapp v1.11.7 |
+| 后端服务 | 微信云函数（Node.js） |
+| 数据库 | 云开发 NoSQL 文档数据库 |
+| 云存储 | 微信云存储（图片资源） |
+| 开发工具 | VS Code（编码）+ 微信开发者工具（预览/调试/发布） |
+| AI 辅助 | DeepSeek V4 全流程 Vibe Coding |
+
+## 页面结构
+
+```
+pages/
+├── splash/       # 开屏页（5s倒计时自动跳转）
+├── index/        # 首页（穿搭瀑布流、下拉刷新、上拉加载）
+├── login/        # 登录页（微信一键授权、游客模式）
+├── detail/       # 详情页（穿搭详情、收藏、解锁）
+└── mine/         # 个人中心（签到、积分、收藏管理）
+```
+
+## 云函数
+
+```
+cloudfunctions/
+├── login              # 用户登录/注册
+├── getOutfits         # 分页获取穿搭列表
+├── getOutfitDetail    # 获取穿搭详情
+├── checkIn            # 每日签到（积分奖励）
+├── collectOutfit      # 收藏/取消收藏
+├── unlockOutfit       # 积分解锁穿搭
+├── getUserProfile     # 获取用户资料与收藏列表
+└── seedOutfits        # 测试数据填充
+```
+
+## 开发环境
+
+- VS Code + GitHub Copilot（集成 DeepSeek V4 模型）
+- 微信开发者工具（预览、真机调试、上传发布）
+- Node.js 16+（云函数运行环境）
+- 微信小程序基础库 3.16.1+
+
+## 快速开始
+
+```bash
+# 1. 安装依赖
+npm install
+
+# 2. 在微信开发者工具中导入项目
+# 工具 → 导入 → 选择本项目目录
+
+# 3. 在微信开发者工具中上传并部署云函数
+# 云开发 → 云函数 → 右键上传全部云函数
+
+# 4. 在云开发控制台创建数据库集合
+# outfits、users、collections、checkins、adConfig
+
+# 5. 启动项目后自动填充测试数据
+# 或手动在云开发控制台调用 seedOutfits 云函数
+```
+
+## 项目亮点
+
+- ✨ **Vibe Coding 实践**：全程使用 AI 对话驱动开发，从架构设计到代码实现均由 DeepSeek V4 辅助完成
+- ☁️ **微信云开发**：免服务器运维，云函数 + 云数据库 + 云存储一体化
+- 🎨 **Vant Weapp UI**：基于有赞组件库构建美观、统一的界面
+- 🔒 **积分体系**：签到赚积分、积分解锁内容，形成用户激励闭环
