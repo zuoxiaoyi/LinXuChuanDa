@@ -1,7 +1,13 @@
 const app = getApp()
+const { buildLoginUrl } = require('./login-route')
 
 function isLoggedIn() {
   return !!(app.globalData.isLogin && app.globalData.userInfo)
+}
+
+function goToLogin(redirectUrl = '') {
+  wx.navigateTo({ url: buildLoginUrl(redirectUrl) })
+  return false
 }
 
 function requireLogin(message = '登录后才能使用该功能', redirectUrl = '') {
@@ -13,10 +19,7 @@ function requireLogin(message = '登录后才能使用该功能', redirectUrl = 
     confirmText: '去登录',
     success(res) {
       if (res.confirm) {
-        const redirect = redirectUrl
-          ? `?redirect=${encodeURIComponent(redirectUrl)}`
-          : ''
-        wx.navigateTo({ url: `/pages/login/login${redirect}` })
+        goToLogin(redirectUrl)
       }
     }
   })
@@ -25,5 +28,6 @@ function requireLogin(message = '登录后才能使用该功能', redirectUrl = 
 
 module.exports = {
   isLoggedIn,
+  goToLogin,
   requireLogin
 }

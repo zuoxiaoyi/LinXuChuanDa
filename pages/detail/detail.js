@@ -1,4 +1,4 @@
-const { isLoggedIn, requireLogin } = require('../../utils/auth')
+const { isLoggedIn, goToLogin, requireLogin } = require('../../utils/auth')
 
 const SCENES = ['通勤', '休闲', '度假', '约会', '日常', '轻运动']
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
@@ -24,7 +24,7 @@ Page({
     const redirectUrl = `/pages/detail/detail?dateIndex=${dateIndex}`
     if (!isLoggedIn()) {
       this.setData({ loading: false })
-      requireLogin('登录后才能查看完整穿搭详情', redirectUrl)
+      goToLogin(redirectUrl)
       return
     }
 

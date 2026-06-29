@@ -1,5 +1,5 @@
 const app = getApp()
-const { isLoggedIn, requireLogin } = require('../../utils/auth')
+const { isLoggedIn, goToLogin } = require('../../utils/auth')
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 const COLOR_RULES = [
@@ -115,7 +115,10 @@ Page({
 
   onGoDetail() {
     const url = `/pages/detail/detail?dateIndex=${this.data.selectedDateIndex}`
-    if (!requireLogin('登录后才能查看完整穿搭详情', url)) return
+    if (!isLoggedIn()) {
+      goToLogin(url)
+      return
+    }
     wx.navigateTo({ url })
   },
 
