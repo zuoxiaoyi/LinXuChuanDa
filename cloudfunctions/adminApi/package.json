@@ -1,0 +1,9 @@
+{
+  "name": "adminApi",
+  "version": "1.0.0",
+  "description": "灵序穿搭Web运营后台统一管理接口",
+  "main": "index.js",
+  "dependencies": {
+    "@cloudbase/node-sdk": "^2.11.0"
+  }
+}
