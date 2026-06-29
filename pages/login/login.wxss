@@ -1,63 +1,153 @@
-/**
- * 登录页样式（Vant版 + 安全区适配）
- */
-.login-container {
-  width: 100vw;
+page {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: #fff;
-  padding: 0 60rpx;
+  overflow: hidden;
+  color: #4c3b25;
+  background: #f8f1e4;
+}
+
+.login-page {
+  position: relative;
+  flex: 1;
+  height: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.login-background,
+.login-mask {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.login-background {
+  z-index: 0;
+}
+
+.login-mask {
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .06) 34%, rgba(247, 237, 217, .42) 60%, rgba(247, 239, 224, .96) 82%),
+    linear-gradient(90deg, rgba(255, 252, 244, .1), rgba(255, 255, 255, 0));
+}
+
+.brand-copy {
+  position: absolute;
+  z-index: 2;
+  right: 44rpx;
+  bottom: 502rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  color: #fffaf0;
+  text-shadow:
+    0 2rpx 6rpx rgba(111, 69, 23, .5),
+    0 0 18rpx rgba(255, 224, 160, .85);
+}
+
+.brand-title {
+  font-family: "STKaiti", "KaiTi", serif;
+  font-size: 74rpx;
+  line-height: 1.12;
+  letter-spacing: 5rpx;
+}
+
+.brand-subtitle {
+  margin-top: 14rpx;
+  padding-right: 8rpx;
+  font-size: 25rpx;
+  letter-spacing: 8rpx;
+}
+
+.login-action-panel {
+  position: absolute;
+  z-index: 3;
+  right: 28rpx;
+  bottom: 0;
+  left: 28rpx;
+  padding: 34rpx 34rpx calc(24rpx + env(safe-area-inset-bottom));
+  border: 1rpx solid rgba(183, 137, 69, .25);
+  border-bottom: 0;
+  border-radius: 32rpx 32rpx 0 0;
+  background: rgba(255, 253, 247, .94);
+  box-shadow: 0 -14rpx 42rpx rgba(96, 67, 28, .13);
+  backdrop-filter: blur(16rpx);
   box-sizing: border-box;
 }
 
-/* Logo区域 */
-.logo-area {
+.panel-heading {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 80rpx;
+  margin-bottom: 28rpx;
 }
 
-.logo-text {
-  font-size: 44rpx;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 16rpx;
+.panel-title {
+  font-family: "STKaiti", "KaiTi", serif;
+  font-size: 36rpx;
+  font-weight: 600;
+  letter-spacing: 3rpx;
 }
 
-.logo-desc {
-  font-size: 26rpx;
-  color: #999;
+.panel-desc {
+  margin-top: 12rpx;
+  color: #8c7a62;
+  font-size: 23rpx;
 }
 
-/* 登录按钮区域 */
-.login-btn-area {
+.wechat-login-button,
+.skip-login-button {
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  margin: 0;
+  padding: 0;
+  border-radius: 999rpx;
+  line-height: 84rpx;
 }
 
-.skip-login {
-  margin-top: 40rpx;
-  padding: 20rpx;
-  color: #999;
-  font-size: 28rpx;
+.wechat-login-button {
+  border: 1rpx solid #ba8a43;
+  color: #fffdf8;
+  font-size: 29rpx;
+  font-weight: 600;
+  letter-spacing: 2rpx;
+  background: linear-gradient(135deg, #c99b50, #a8732c);
+  box-shadow: 0 10rpx 24rpx rgba(166, 112, 38, .24);
+}
+
+.wechat-login-button::after,
+.skip-login-button::after {
+  border: 0;
+}
+
+.wechat-login-button[disabled] {
+  color: rgba(255, 253, 248, .78);
+  background: #b8aa96;
+}
+
+.skip-login-button {
+  margin-top: 12rpx;
+  color: #786344;
+  font-size: 25rpx;
+  background: transparent;
 }
 
 .login-error {
-  margin-top: 24rpx;
+  display: block;
+  margin-top: 16rpx;
   color: #a45f54;
-  font-size: 24rpx;
+  font-size: 23rpx;
+  line-height: 1.5;
+  text-align: center;
 }
 
-/* 协议提示 */
 .agreement-text {
-  position: absolute;
-  bottom: calc(60rpx + env(safe-area-inset-bottom));
-  font-size: 22rpx;
-  color: #bbb;
+  display: block;
+  margin-top: 8rpx;
+  color: #aa9d8a;
+  font-size: 20rpx;
+  line-height: 1.5;
+  text-align: center;
 }

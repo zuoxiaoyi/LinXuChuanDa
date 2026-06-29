@@ -1,38 +1,44 @@
-<!--
-  登录页模板（Vant版）
-  布局：居中Logo + Vant按钮 + 跳过入口
--->
-<view class="login-container">
-  <!-- Logo区域 -->
-  <view class="logo-area">
-    <text class="logo-text">灵序穿搭</text>
-    <text class="logo-desc">发现你的每日穿搭灵感</text>
+<navigation-bar
+  title="灵序穿搭"
+  back="{{true}}"
+  color="#4c3b25"
+  background="rgba(255, 253, 247, .94)"
+></navigation-bar>
+
+<view class="login-page">
+  <image
+    class="login-background"
+    src="/images/splash/bg.png"
+    mode="aspectFill"
+  ></image>
+  <view class="login-mask"></view>
+
+  <view class="brand-copy">
+    <text class="brand-title">灵序穿搭</text>
+    <text class="brand-subtitle">穿出你的好运势</text>
   </view>
 
-  <!-- 登录按钮区域 -->
-  <view class="login-btn-area">
-    <van-button
-      round
-      block
-      color="#667eea"
+  <view class="login-action-panel">
+    <view class="panel-heading">
+      <text class="panel-title">登录后查看完整穿搭</text>
+      <text class="panel-desc">保存你的收藏、积分与每日穿搭记录</text>
+    </view>
+
+    <button
+      class="wechat-login-button"
       loading="{{loading}}"
-      disabled="{{!canLogin}}"
-      custom-style="height:90rpx;font-size:32rpx;font-weight:500;"
-      bind:click="onLogin"
+      disabled="{{!canLogin || loading}}"
+      bindtap="onLogin"
     >
-      微信一键登录
-    </van-button>
+      微信授权一键登录
+    </button>
 
     <text class="login-error" wx:if="{{error}}">{{error}}</text>
-
-    <!-- 游客模式 -->
-    <view class="skip-login" bindtap="onSkip">
-      <text>暂不登录，先看看</text>
-    </view>
-  </view>
-
-  <!-- 协议提示 -->
-  <view class="agreement-text">
-    <text>登录即表示同意《用户协议》和《隐私政策》</text>
+    <button class="skip-login-button" bindtap="onSkip">
+      暂不登录，返回首页
+    </button>
+    <text class="agreement-text">
+      登录即表示同意《用户协议》和《隐私政策》
+    </text>
   </view>
 </view>
