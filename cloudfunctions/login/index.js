@@ -1,24 +1,19 @@
-/**
- * 云函数 - login
- * 功能：用户登录/注册，返回用户信息和openid
- */
 const cloud = require('wx-server-sdk')
+
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
 const db = cloud.database()
 
-exports.main = async (event, context) => {
+exports.main = async (event = {}) => {
   const { OPENID } = cloud.getWXContext()
   const { nickName, avatarUrl } = event
 
   try {
-    // 查找是否已有该用户
     const userRes = await db.collection('users').where({
       _openid: OPENID
     }).get()
 
     if (userRes.data.length === 0) {
-      // 新用户 -> 注册
       await db.collection('users').add({
         data: {
           _openid: OPENID,
@@ -26,31 +21,41 @@ exports.main = async (event, context) => {
           avatarUrl: avatarUrl || '',
           points: 0,
           totalPoints: 0,
-          createTime: db.serverDate()
+          createTime: db.serverDate(),
+          updateTime: db.serverDate()
         }
       })
     } else {
-      // 老用户 -> 更新信息
-      await db.collection('users').where({ _openid: OPENID }).update({
+      const currentUser = userRes.data[0]
+      await db.collection('users').doc(currentUser._id).update({
         data: {
-          nickName: nickName || userRes.data[0].nickName,
-          avatarUrl: avatarUrl || userRes.data[0].avatarUrl
+          nickName: nickName || currentUser.nickName,
+          avatarUrl: avatarUrl || currentUser.avatarUrl,
+          updateTime: db.serverDate()
         }
       })
     }
 
-    // 返回最新用户数据
-    const latestUser = await db.collection('users').where({
+    const latestUserRes = await db.collection('users').where({
       _openid: OPENID
-    }).get()
+    }).limit(1).get()
+    const userInfo = latestUserRes.data[0]
+
+    if (!userInfo) {
+      throw new Error('用户记录创建失败')
+    }
 
     return {
+      success: true,
       openid: OPENID,
-      points: latestUser.data[0].points || 0,
-      userInfo: latestUser.data[0]
+      points: Number(userInfo.points) || 0,
+      userInfo
     }
   } catch (err) {
     console.error('登录失败:', err)
-    return { openid: OPENID, points: 0 }
+    return {
+      success: false,
+      message: '登录服务暂时不可用'
+    }
   }
 }

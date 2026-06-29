@@ -1,89 +1,81 @@
-/**
- * 登录页
- * 功能：微信一键授权登录，获取用户头像昵称
- */
-// 获取全局应用实例
 const app = getApp()
+const { normalizeRedirect } = require('../../utils/login-route')
 
 Page({
   data: {
-    canLogin: true,       // 是否可点击登录
-    loading: false,       // 加载状态
-    avatarUrl: '',        // 默认头像
-    nickName: '',         // 默认昵称
+    canLogin: true,
+    loading: false,
     error: '',
     redirectUrl: ''
   },
 
-  onLoad(options) {
-    let redirectUrl = ''
-    if (options.redirect) {
-      try {
-        const decoded = decodeURIComponent(options.redirect)
-        if (decoded.startsWith('/pages/')) redirectUrl = decoded
-      } catch (err) {
-        console.warn('登录回跳地址解析失败:', err)
-      }
-    }
+  onLoad(options = {}) {
+    this._pageActive = true
+    const redirectUrl = normalizeRedirect(options.redirect)
     this.setData({ redirectUrl })
 
-    if (app.globalData.isLogin) {
+    if (app.globalData.isLogin && app.globalData.userInfo) {
       this.completeLoginNavigation()
     }
   },
 
-  /** 一键微信登录 */
+  onUnload() {
+    this._pageActive = false
+  },
+
   async onLogin() {
     if (!this.data.canLogin || this.data.loading) return
 
     this.setData({ loading: true, canLogin: false, error: '' })
 
     try {
-      // 1. 获取微信用户头像昵称（新版API需用户主动选择）
       const profileRes = await wx.getUserProfile({
-        desc: '用于展示个人资料'
+        desc: '用于完善会员资料与展示头像昵称'
       })
-
-      const userInfo = profileRes.userInfo
-
-      // 2. 调用云函数登录/注册
+      const profile = profileRes.userInfo || {}
       const loginRes = await wx.cloud.callFunction({
         name: 'login',
         data: {
-          nickName: userInfo.nickName,
-          avatarUrl: userInfo.avatarUrl
+          nickName: profile.nickName,
+          avatarUrl: profile.avatarUrl
         }
       })
-
-      // 3. 存储用户信息
-      if (loginRes.result) {
-        app.globalData.userInfo = userInfo
-        app.globalData.isLogin = true
-        app.globalData.openid = loginRes.result.openid
-        app.globalData.points = loginRes.result.points || 0
-
-        wx.setStorageSync('userInfo', userInfo)
-
-        wx.showToast({ title: '登录成功', icon: 'success' })
-        setTimeout(() => this.completeLoginNavigation(), 800)
+      if (!loginRes.result?.success || !loginRes.result.userInfo) {
+        throw new Error(loginRes.result?.message || '登录服务返回异常')
       }
+      const result = loginRes.result
+
+      const userInfo = {
+        ...result.userInfo,
+        nickName: result.userInfo.nickName || profile.nickName,
+        avatarUrl: result.userInfo.avatarUrl || profile.avatarUrl
+      }
+
+      app.globalData.userInfo = userInfo
+      app.globalData.isLogin = true
+      app.globalData.openid = result.openid
+      app.globalData.points = Number(result.points) || 0
+      wx.setStorageSync('userInfo', userInfo)
+      wx.showToast({ title: '登录成功', icon: 'success' })
+      this.completeLoginNavigation()
     } catch (err) {
-      console.error('登录失败:', err)
-      const isCancel = err && /cancel|deny/i.test(err.errMsg || '')
-      this.setData({
-        error: isCancel ? '' : '登录失败，请检查网络后重试'
-      })
-      if (!isCancel) {
+      const errMessage = err?.errMsg || err?.message || ''
+      const isCancel = /cancel|deny/i.test(errMessage)
+
+      if (!isCancel && this._pageActive) {
+        console.error('登录失败:', err)
+        this.setData({ error: '登录失败，请检查网络后重试' })
         wx.showToast({ title: '登录失败，请重试', icon: 'none' })
       }
     } finally {
-      this.setData({ loading: false, canLogin: true })
+      if (this._pageActive) {
+        this.setData({ loading: false, canLogin: true })
+      }
     }
   },
 
-  /** 跳过登录（游客模式） */
   onSkip() {
-    this.navigateBack()
+    wx.reLaunch({ url: '/pages/index/index' })
   },
 
   completeLoginNavigation() {
@@ -97,13 +89,12 @@ Page({
     this.navigateBack()
   },
 
-  /** 返回上一页 */
   navigateBack() {
     const pages = getCurrentPages()
     if (pages.length > 1) {
       wx.navigateBack()
-    } else {
-      wx.reLaunch({ url: '/pages/index/index' })
+      return
     }
+    wx.reLaunch({ url: '/pages/index/index' })
   }
 })

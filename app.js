@@ -55,7 +55,7 @@ App({
   async getOpenid() {
     if (this.globalData.openid) return this.globalData.openid
     const res = await wx.cloud.callFunction({ name: 'login' })
-    if (res.result) {
+    if (res.result?.success) {
       this.globalData.openid = res.result.openid
       return res.result.openid
     }
