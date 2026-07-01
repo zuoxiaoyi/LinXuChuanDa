@@ -20,6 +20,7 @@ const menuItems = [
   { path: '/', label: '运营概览', icon: DataAnalysis },
   { path: '/outfits', label: '穿搭素材', icon: Goods },
   { path: '/accessories', label: '幸运配饰', icon: Van },
+  { path: '/calendar-recommendations', label: '日历与颜色', icon: Calendar },
   { path: '/recommendations', label: '每日建议', icon: Calendar },
   { path: '/content', label: '内容配置', icon: Collection },
   { path: '/users', label: '用户与积分', icon: User },

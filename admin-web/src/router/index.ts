@@ -30,6 +30,11 @@ const router = createRouter({
           component: () => import('@/pages/AccessoriesPage.vue')
         },
         {
+          path: 'calendar-recommendations',
+          name: 'calendar-recommendations',
+          component: () => import('@/pages/CalendarRecommendationsPage.vue')
+        },
+        {
           path: 'recommendations',
           name: 'recommendations',
           component: () => import('@/pages/RecommendationsPage.vue')
