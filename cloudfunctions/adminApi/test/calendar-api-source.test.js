@@ -15,3 +15,16 @@ test('基础日历使用独立集合和独立管理动作', () => {
   assert.match(source, /'calendarRecommendations\.generate'/)
   assert.match(source, /buildCalendarRecommendation/)
 })
+
+test('两个生成入口通过共享映射返回日期范围校验错误', () => {
+  assert.equal(
+    source.match(
+      /const dates = validatedDateRange\(payload\.startDate, payload\.endDate\)/g
+    )?.length,
+    2
+  )
+  assert.match(
+    source,
+    /throw new ApiError\('VALIDATION_ERROR', error\.message\)/
+  )
+})

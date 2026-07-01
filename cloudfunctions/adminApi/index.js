@@ -455,8 +455,16 @@ async function removeDocument(collectionName, payload, admin, requestId) {
   return { removed: 1 }
 }
 
+function validatedDateRange(startDate, endDate) {
+  try {
+    return buildDateRange(startDate, endDate)
+  } catch (error) {
+    throw new ApiError('VALIDATION_ERROR', error.message)
+  }
+}
+
 async function generateRecommendations(payload, admin, requestId) {
-  const dates = buildDateRange(payload.startDate, payload.endDate)
+  const dates = validatedDateRange(payload.startDate, payload.endDate)
   const ruleVersion = requiredString(payload.ruleVersion, '规则版本', 30)
   let generated = 0
   let skipped = 0
@@ -508,7 +516,7 @@ async function generateRecommendations(payload, admin, requestId) {
 }
 
 async function generateCalendarRecommendations(payload, admin, requestId) {
-  const dates = buildDateRange(payload.startDate, payload.endDate)
+  const dates = validatedDateRange(payload.startDate, payload.endDate)
   const ruleVersion = requiredString(payload.ruleVersion, '规则版本', 30)
   let generated = 0
   let skipped = 0
