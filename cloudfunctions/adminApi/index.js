@@ -3,6 +3,7 @@ const {
   buildCalendarRecommendation,
   buildDateRange
 } = require('./calendar-rules')
+const { insertCalendarRecommendation } = require('./calendar-insert')
 
 const app = cloudbase.init({
   env: cloudbase.SYMBOL_CURRENT_ENV
@@ -533,19 +534,22 @@ async function generateCalendarRecommendations(payload, admin, requestId) {
     }
 
     const draft = buildCalendarRecommendation(date, ruleVersion)
-    await db.collection('dailyCalendarRecommendations').add({
-      data: {
-        ...draft,
-        version: 1,
-        createdAt: db.serverDate(),
-        createdBy: admin.uid,
-        updatedAt: db.serverDate(),
-        updatedBy: admin.uid,
-        isDeleted: false,
-        deletedAt: null
-      }
-    })
-    generated += 1
+    const result = await insertCalendarRecommendation(() =>
+      db.collection('dailyCalendarRecommendations').add({
+        data: {
+          ...draft,
+          version: 1,
+          createdAt: db.serverDate(),
+          createdBy: admin.uid,
+          updatedAt: db.serverDate(),
+          updatedBy: admin.uid,
+          isDeleted: false,
+          deletedAt: null
+        }
+      })
+    )
+    if (result === 'generated') generated += 1
+    else skipped += 1
   }
 
   await writeAudit(
