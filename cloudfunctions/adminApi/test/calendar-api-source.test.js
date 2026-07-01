@@ -28,3 +28,14 @@ test('两个生成入口通过共享映射返回日期范围校验错误', () =>
     /throw new ApiError\('VALIDATION_ERROR', error\.message\)/
   )
 })
+
+test('日历建议按 Node SDK 约定直接写入文档字段', () => {
+  assert.match(
+    source,
+    /db\.collection\('dailyCalendarRecommendations'\)\.add\(\{\s*\.\.\.draft,/
+  )
+  assert.doesNotMatch(
+    source,
+    /db\.collection\('dailyCalendarRecommendations'\)\.add\(\{\s*data:/
+  )
+})

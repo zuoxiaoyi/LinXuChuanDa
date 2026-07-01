@@ -17,25 +17,25 @@
 - [x] `lunar-javascript@1.7.7` 锁定并通过已知日期测试
 - [x] `dailyCalendarRecommendations` 使用独立集合
 - [x] 后台可生成和查看农历、干支、日支五行及三档颜色
-- [ ] CloudBase 已创建 `dailyCalendarRecommendations.date` 唯一索引
-- [ ] `adminApi` 已重新上传并选择云端安装依赖
-- [ ] `admin-web` 已重新发布
-- [ ] 2026-04-15 与 2026-06-29 已在生产环境人工复核
+- [x] CloudBase 已创建 `dailyCalendarRecommendations.date` 唯一索引
+- [x] `adminApi` 已重新上传并选择云端安装依赖
+- [x] `admin-web` 已重新发布
+- [x] 2026-04-15 与 2026-06-29 已在生产环境人工复核
 
 ## 需要CloudBase环境授权后执行
 
-- [ ] 登录CloudBase MCP或控制台
+- [x] 登录CloudBase MCP或控制台
 - [ ] 确认环境Region和运行后端
 - [ ] 启用用户名密码登录
 - [ ] 创建Publishable Key
 - [ ] 创建首个管理员Auth账号
 - [ ] 创建 `adminUsers` 首个超级管理员文档
 - [ ] 创建业务集合
-- [ ] 创建唯一索引和查询索引
+- [x] 创建唯一索引和查询索引
 - [ ] 配置数据库安全规则
-- [ ] 部署 `adminApi`
+- [x] 部署 `adminApi`
 - [ ] 配置Web安全来源域名
-- [ ] 部署后台静态站点
+- [x] 部署后台静态站点
 
 ## 需要业务规则后执行
 

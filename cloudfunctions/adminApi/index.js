@@ -536,16 +536,14 @@ async function generateCalendarRecommendations(payload, admin, requestId) {
     const draft = buildCalendarRecommendation(date, ruleVersion)
     const result = await insertCalendarRecommendation(() =>
       db.collection('dailyCalendarRecommendations').add({
-        data: {
-          ...draft,
-          version: 1,
-          createdAt: db.serverDate(),
-          createdBy: admin.uid,
-          updatedAt: db.serverDate(),
-          updatedBy: admin.uid,
-          isDeleted: false,
-          deletedAt: null
-        }
+        ...draft,
+        version: 1,
+        createdAt: db.serverDate(),
+        createdBy: admin.uid,
+        updatedAt: db.serverDate(),
+        updatedBy: admin.uid,
+        isDeleted: false,
+        deletedAt: null
       })
     )
     if (result === 'generated') generated += 1
