@@ -12,6 +12,16 @@
 - [x] 类型检查和生产构建
 - [x] 本地Demo视觉与交互验证
 
+## 日历与颜色基础
+
+- [x] `lunar-javascript@1.7.7` 锁定并通过已知日期测试
+- [x] `dailyCalendarRecommendations` 使用独立集合
+- [x] 后台可生成和查看农历、干支、日支五行及三档颜色
+- [ ] CloudBase 已创建 `dailyCalendarRecommendations.date` 唯一索引
+- [ ] `adminApi` 已重新上传并选择云端安装依赖
+- [ ] `admin-web` 已重新发布
+- [ ] 2026-04-15 与 2026-06-29 已在生产环境人工复核
+
 ## 需要CloudBase环境授权后执行
 
 - [ ] 登录CloudBase MCP或控制台
