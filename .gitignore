@@ -8,6 +8,7 @@ admin-web/.env.*.local
 .codex/
 .rules/
 .workbuddy/
+.worktrees/
 
 # 微信开发者工具个人本地配置（每台机器不同）
 project.private.config.json
