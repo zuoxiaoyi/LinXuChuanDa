@@ -1,4 +1,8 @@
 const cloudbase = require('@cloudbase/node-sdk')
+const {
+  buildCalendarRecommendation,
+  buildDateRange
+} = require('./calendar-rules')
 
 const app = cloudbase.init({
   env: cloudbase.SYMBOL_CURRENT_ENV
@@ -66,6 +70,9 @@ const ACTION_PERMISSIONS = {
   'recommendations.save': 'recommendations.write',
   'recommendations.publish': 'recommendations.publish',
   'recommendations.unpublish': 'recommendations.publish',
+  'calendarRecommendations.list': 'recommendations.read',
+  'calendarRecommendations.get': 'recommendations.read',
+  'calendarRecommendations.generate': 'recommendations.write',
   'content.list': 'content.read',
   'content.get': 'content.read',
   'content.save': 'content.write',
@@ -83,6 +90,7 @@ const COLLECTION_MAP = {
   outfits: 'outfits',
   accessories: 'accessories',
   recommendations: 'dailyRecommendations',
+  calendarRecommendations: 'dailyCalendarRecommendations',
   content: 'contentConfigs'
 }
 
@@ -447,22 +455,8 @@ async function removeDocument(collectionName, payload, admin, requestId) {
   return { removed: 1 }
 }
 
-function dateRange(startDate, endDate) {
-  const start = new Date(`${startDate}T00:00:00+08:00`)
-  const end = new Date(`${endDate}T00:00:00+08:00`)
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
-    throw new ApiError('VALIDATION_ERROR', '日期范围不正确')
-  }
-  const list = []
-  for (let cursor = start; cursor <= end; cursor = new Date(cursor.getTime() + 86400000)) {
-    if (list.length >= 31) throw new ApiError('VALIDATION_ERROR', '单次最多生成31天')
-    list.push(cursor.toISOString().slice(0, 10))
-  }
-  return list
-}
-
 async function generateRecommendations(payload, admin, requestId) {
-  const dates = dateRange(payload.startDate, payload.endDate)
+  const dates = buildDateRange(payload.startDate, payload.endDate)
   const ruleVersion = requiredString(payload.ruleVersion, '规则版本', 30)
   let generated = 0
   let skipped = 0
@@ -506,6 +500,50 @@ async function generateRecommendations(payload, admin, requestId) {
     admin,
     'generate',
     'dailyRecommendations',
+    '',
+    `${payload.startDate}~${payload.endDate}, generated=${generated}`,
+    requestId
+  )
+  return { generated, skipped }
+}
+
+async function generateCalendarRecommendations(payload, admin, requestId) {
+  const dates = buildDateRange(payload.startDate, payload.endDate)
+  const ruleVersion = requiredString(payload.ruleVersion, '规则版本', 30)
+  let generated = 0
+  let skipped = 0
+
+  for (const date of dates) {
+    const existing = await db.collection('dailyCalendarRecommendations').where({
+      date,
+      isDeleted: command.neq(true)
+    }).limit(1).get()
+
+    if (existing.data.length) {
+      skipped += 1
+      continue
+    }
+
+    const draft = buildCalendarRecommendation(date, ruleVersion)
+    await db.collection('dailyCalendarRecommendations').add({
+      data: {
+        ...draft,
+        version: 1,
+        createdAt: db.serverDate(),
+        createdBy: admin.uid,
+        updatedAt: db.serverDate(),
+        updatedBy: admin.uid,
+        isDeleted: false,
+        deletedAt: null
+      }
+    })
+    generated += 1
+  }
+
+  await writeAudit(
+    admin,
+    'generate',
+    'dailyCalendarRecommendations',
     '',
     `${payload.startDate}~${payload.endDate}, generated=${generated}`,
     requestId
@@ -731,6 +769,9 @@ async function route(action, payload, admin, requestId) {
       requestId,
       sanitizeRecommendation
     )
+  }
+  if (action === 'calendarRecommendations.generate') {
+    return generateCalendarRecommendations(payload, admin, requestId)
   }
   if (action === 'recommendations.generate') {
     return generateRecommendations(payload, admin, requestId)
