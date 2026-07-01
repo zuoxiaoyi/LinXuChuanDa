@@ -54,6 +54,42 @@ export interface DailyRecommendation {
   updatedAt?: string
 }
 
+export type ElementCode = '木' | '火' | '土' | '金' | '水'
+
+export interface ColorAdviceLevel {
+  element: ElementCode
+  colors: string[]
+}
+
+export interface CalendarInfo {
+  gregorianDate: string
+  weekText: string
+  lunarYear: number
+  lunarText: string
+  yearGanZhi: string
+  monthGanZhi: string
+  dayGanZhi: string
+  dayBranch: string
+  dayElement: ElementCode
+}
+
+export interface CalendarRecommendation {
+  _id?: string
+  date: string
+  calendar: CalendarInfo
+  colorAdvice: {
+    primary: ColorAdviceLevel
+    secondary: ColorAdviceLevel
+    avoid: ColorAdviceLevel
+  }
+  ruleVersion: string
+  generationMode: 'algorithm'
+  manualOverride: boolean
+  status: PublishStatus
+  version?: number
+  updatedAt?: string
+}
+
 export interface ContentConfig {
   _id?: string
   key: 'about' | 'user_agreement' | 'privacy' | 'share_copy'

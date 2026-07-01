@@ -1,5 +1,6 @@
 import type {
   Accessory,
+  CalendarRecommendation,
   ContentConfig,
   DailyRecommendation,
   DashboardSummary,
@@ -65,6 +66,34 @@ const users: UserRecord[] = [
 
 const recommendations: DailyRecommendation[] = []
 
+const calendarRecommendations: CalendarRecommendation[] = [
+  {
+    _id: 'demo-calendar-2026-04-15',
+    date: '2026-04-15',
+    calendar: {
+      gregorianDate: '2026-04-15',
+      weekText: '星期三',
+      lunarYear: 2026,
+      lunarText: '二月廿八',
+      yearGanZhi: '丙午',
+      monthGanZhi: '壬辰',
+      dayGanZhi: '己未',
+      dayBranch: '未',
+      dayElement: '土'
+    },
+    colorAdvice: {
+      primary: { element: '金', colors: ['白', '银', '浅灰', '金属色'] },
+      secondary: { element: '土', colors: ['黄', '棕', '咖', '驼', '杏', '褐'] },
+      avoid: { element: '水', colors: ['黑', '蓝', '深灰'] }
+    },
+    ruleVersion: '2026.1',
+    generationMode: 'algorithm',
+    manualOverride: false,
+    status: 'draft',
+    version: 1
+  }
+]
+
 function paginate<T>(list: T[], payload: Record<string, any>) {
   const page = Number(payload.page || 1)
   const pageSize = Number(payload.pageSize || 20)
@@ -99,11 +128,17 @@ export async function callDemoAction(action: string, payload: Record<string, any
   if (action === 'outfits.list') return paginate(outfits, payload)
   if (action === 'accessories.list') return paginate(accessories, payload)
   if (action === 'recommendations.list') return paginate(recommendations, payload)
+  if (action === 'calendarRecommendations.list') {
+    return paginate(calendarRecommendations, payload)
+  }
   if (action === 'content.list') return paginate(contents, payload)
   if (action === 'users.list') return paginate(users, payload)
   if (action.endsWith('.save')) return { _id: payload._id || `demo-${Date.now()}`, ...payload }
   if (action.endsWith('.setStatus')) return { updated: 1 }
   if (action === 'recommendations.generate') return { generated: 0, skipped: 0 }
+  if (action === 'calendarRecommendations.generate') {
+    return { generated: 0, skipped: calendarRecommendations.length }
+  }
   if (action === 'points.adjust') return { userId: payload.userId, amount: payload.amount }
   if (action === 'configs.get') {
     return {
