@@ -34,7 +34,8 @@ const ROLE_PERMISSIONS = {
     'content.read',
     'content.write',
     'content.publish',
-    'configs.read'
+    'configs.read',
+    'configs.write'
   ],
   operator: [
     'dashboard.read',

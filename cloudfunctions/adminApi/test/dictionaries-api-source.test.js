@@ -21,3 +21,8 @@ test('素材保存通过服务端规则推导五行', () => {
   assert.match(source, /normalizeAccessory/)
   assert.match(source, /validatePublishMaterial/)
 })
+
+test('内容编辑角色可以维护标签字典', () => {
+  const editorPermissions = source.match(/editor:\s*\[([\s\S]*?)\]/)?.[1] || ''
+  assert.match(editorPermissions, /'configs\.write'/)
+})
