@@ -1,13 +1,14 @@
 const { isLoggedIn, goToLogin } = require('../../utils/auth')
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
-const COLOR_RULES = [
-  { primary: ['米白', '浅蓝'], secondary: ['卡其', '灰色'], avoid: ['亮红'] },
-  { primary: ['绿色', '青色'], secondary: ['米色', '棕色'], avoid: ['纯黑'] },
-  { primary: ['杏色', '金色'], secondary: ['白色', '浅黄'], avoid: ['深蓝'] },
-  { primary: ['粉色', '紫色'], secondary: ['灰白', '浅咖'], avoid: ['荧光色'] },
-  { primary: ['蓝色', '黑色'], secondary: ['银灰', '白色'], avoid: ['橙色'] }
-]
+
+function formatDate(date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0')
+  ].join('-')
+}
 
 function emptyWeather(status = '正在获取天气') {
   return {
@@ -37,10 +38,12 @@ Page({
   },
 
   onLoad() {
+    const dateList = this.buildDateList()
     this.setData({
-      dateList: this.buildDateList(),
-      selectedDay: this.buildDayDetail(0)
+      dateList,
+      selectedDay: this.buildDayDetail(0, dateList)
     })
+    this.loadCalendarColors()
     this.initializeWeather()
   },
 
@@ -56,6 +59,7 @@ Page({
       date.setDate(today.getDate() + index)
       list.push({
         index,
+        date: formatDate(date),
         day: date.getDate(),
         month: date.getMonth() + 1,
         week: `周${WEEKDAYS[date.getDay()]}`,
@@ -66,19 +70,59 @@ Page({
     return list
   },
 
-  buildDayDetail(index) {
-    const date = new Date()
-    date.setDate(date.getDate() + index)
-    const colorRule = COLOR_RULES[
-      (date.getFullYear() + date.getMonth() + date.getDate()) % COLOR_RULES.length
-    ]
+  buildDayDetail(index, dateList = this.data.dateList) {
+    const item = dateList[index]
+    if (!item) return null
     return {
-      dateText: `${date.getMonth() + 1}月${date.getDate()}日`,
-      weekText: `星期${WEEKDAYS[date.getDay()]}`,
-      primaryColors: colorRule.primary,
-      secondaryColors: colorRule.secondary,
-      avoidColors: colorRule.avoid
+      dateText: `${item.month}月${item.day}日`,
+      weekText: item.calendar?.weekText || item.week.replace('周', '星期'),
+      lunarText: item.calendar
+        ? `${item.calendar.lunarYear}年 农历${item.calendar.lunarText}`
+        : '农历加载中',
+      ganZhiText: item.calendar
+        ? `${item.calendar.yearGanZhi}年 ${item.calendar.monthGanZhi}月 ${item.calendar.dayGanZhi}日`
+        : '',
+      primaryColors: item.colorAdvice?.primary?.colors || [],
+      secondaryColors: item.colorAdvice?.secondary?.colors || [],
+      avoidColors: item.colorAdvice?.avoid?.colors || []
     }
+  },
+
+  loadCalendarColors() {
+    const startDate = this.data.dateList[0]?.date
+    if (!startDate) return
+    wx.cloud.callFunction({
+      name: 'adminApi',
+      data: {
+        action: 'calendarRecommendations.publicRange',
+        payload: { startDate, days: 7 }
+      }
+    }).then(result => {
+      const response = result.result
+      if (!response?.success) {
+        throw new Error(response?.message || '农历加载失败')
+      }
+      const calendarMap = new Map(
+        (response.data.days || []).map(item => [item.date, item])
+      )
+      const dateList = this.data.dateList.map(item => ({
+        ...item,
+        calendar: calendarMap.get(item.date)?.calendar,
+        colorAdvice: calendarMap.get(item.date)?.colorAdvice
+      }))
+      this.setData({
+        dateList,
+        selectedDay: this.buildDayDetail(this.data.selectedDateIndex, dateList)
+      })
+    }).catch(() => {
+      this.setData({
+        'selectedDay.lunarText': '农历加载失败',
+        'selectedDay.ganZhiText': '',
+        'selectedDay.primaryColors': [],
+        'selectedDay.secondaryColors': [],
+        'selectedDay.avoidColors': []
+      })
+    })
   },
 
   callWeather(action, payload) {

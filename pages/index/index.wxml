@@ -10,8 +10,14 @@
   <image class="paper-bg" src="/images/common/bg.jpg" mode="aspectFill" />
   <view class="content">
     <view class="date-heading centered-date">
-      <text class="date-text">{{selectedDay.dateText}}</text>
-      <text class="week-text">{{selectedDay.weekText}}</text>
+      <view class="date-main">
+        <text class="date-text">{{selectedDay.dateText}}</text>
+        <text class="week-text">{{selectedDay.weekText}}</text>
+      </view>
+      <view class="calendar-meta">
+        <text class="lunar-text">{{selectedDay.lunarText}}</text>
+        <text class="ganzhi-text" wx:if="{{selectedDay.ganZhiText}}">{{selectedDay.ganZhiText}}</text>
+      </view>
     </view>
 
     <view class="color-panel">
