@@ -5,6 +5,16 @@ const test = require('node:test')
 
 const source = readFileSync(join(__dirname, '..', 'index.js'), 'utf8')
 
+test('公开日历动作在管理员鉴权前处理且最多返回7天', () => {
+  assert.match(source, /'calendarRecommendations\.publicRange':\s*null/)
+  assert.match(source, /action === 'calendarRecommendations\.publicRange'/)
+  assert.match(source, /Math\.min\(7,\s*Math\.max\(1,/)
+  assert.ok(
+    source.indexOf("action === 'calendarRecommendations.publicRange'")
+      < source.indexOf('const uid = resolveUid')
+  )
+})
+
 test('基础日历使用独立集合和独立管理动作', () => {
   assert.match(
     source,

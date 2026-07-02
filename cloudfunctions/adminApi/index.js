@@ -74,6 +74,7 @@ const ACTION_PERMISSIONS = {
   'calendarRecommendations.list': 'recommendations.read',
   'calendarRecommendations.get': 'recommendations.read',
   'calendarRecommendations.generate': 'recommendations.write',
+  'calendarRecommendations.publicRange': null,
   'content.list': 'content.read',
   'content.get': 'content.read',
   'content.save': 'content.write',
@@ -464,6 +465,23 @@ function validatedDateRange(startDate, endDate) {
   }
 }
 
+function publicCalendarRange(payload) {
+  const startDate = requiredString(payload.startDate, '开始日期', 10)
+  const days = Math.min(7, Math.max(1, Number.parseInt(payload.days, 10) || 7))
+  const [year, month, day] = startDate.split('-').map(Number)
+  const end = new Date(Date.UTC(year, month - 1, day + days - 1))
+  const endDate = [
+    end.getUTCFullYear(),
+    String(end.getUTCMonth() + 1).padStart(2, '0'),
+    String(end.getUTCDate()).padStart(2, '0')
+  ].join('-')
+
+  return {
+    days: validatedDateRange(startDate, endDate)
+      .map(date => buildCalendarRecommendation(date, '2026.1'))
+  }
+}
+
 async function generateRecommendations(payload, admin, requestId) {
   const dates = validatedDateRange(payload.startDate, payload.endDate)
   const ruleVersion = requiredString(payload.ruleVersion, '规则版本', 30)
@@ -843,6 +861,10 @@ exports.main = async (event = {}, context = {}) => {
     const action = requiredString(event.action, 'action', 80)
     if (!(action in ACTION_PERMISSIONS)) {
       throw new ApiError('NOT_FOUND', '不支持的后台操作')
+    }
+
+    if (action === 'calendarRecommendations.publicRange') {
+      return success(publicCalendarRange(event.payload || {}), requestId)
     }
 
     const uid = resolveUid(event, context)
