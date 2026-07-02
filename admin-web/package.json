@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
-    "test": "node --test tests/login-page.test.mjs tests/auth-flow.test.mjs tests/data-compat.test.mjs tests/calendar-recommendations.test.mjs",
+    "test": "node --test tests/login-page.test.mjs tests/auth-flow.test.mjs tests/data-compat.test.mjs tests/calendar-recommendations.test.mjs tests/dictionaries-materials.test.mjs",
     "typecheck": "vue-tsc -b",
     "preview": "vite preview"
   },

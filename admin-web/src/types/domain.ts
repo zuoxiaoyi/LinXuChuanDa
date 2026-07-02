@@ -1,4 +1,24 @@
 export type PublishStatus = 'draft' | 'published' | 'disabled'
+export type DictionaryType =
+  | 'element'
+  | 'color'
+  | 'scene'
+  | 'season'
+  | 'weather'
+  | 'accessoryType'
+
+export interface TagDictionary {
+  _id?: string
+  type: DictionaryType
+  code: string
+  name: string
+  colorHex?: string
+  elementCode?: string
+  order: number
+  enabled: boolean
+  systemLocked: boolean
+  version?: number
+}
 
 export interface AdminUser {
   uid: string

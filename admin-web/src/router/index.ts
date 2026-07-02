@@ -20,6 +20,11 @@ const router = createRouter({
           component: () => import('@/pages/DashboardPage.vue')
         },
         {
+          path: 'dictionaries',
+          name: 'dictionaries',
+          component: () => import('@/pages/DictionariesPage.vue')
+        },
+        {
           path: 'outfits',
           name: 'outfits',
           component: () => import('@/pages/OutfitsPage.vue')

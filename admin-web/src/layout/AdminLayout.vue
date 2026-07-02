@@ -5,6 +5,7 @@ import {
   Calendar,
   Collection,
   DataAnalysis,
+  Files,
   Goods,
   Setting,
   User,
@@ -18,6 +19,7 @@ const auth = useAuthStore()
 
 const menuItems = [
   { path: '/', label: '运营概览', icon: DataAnalysis },
+  { path: '/dictionaries', label: '标签字典', icon: Files },
   { path: '/outfits', label: '穿搭素材', icon: Goods },
   { path: '/accessories', label: '幸运配饰', icon: Van },
   { path: '/calendar-recommendations', label: '日历与颜色', icon: Calendar },
