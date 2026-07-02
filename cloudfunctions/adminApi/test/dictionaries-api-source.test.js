@@ -1,0 +1,23 @@
+const assert = require('node:assert/strict')
+const { readFileSync } = require('node:fs')
+const { join } = require('node:path')
+const test = require('node:test')
+
+const source = readFileSync(join(__dirname, '..', 'index.js'), 'utf8')
+
+test('adminApi 注册字典读写和初始化动作', () => {
+  for (const action of [
+    'dictionaries.list',
+    'dictionaries.save',
+    'dictionaries.setStatus',
+    'dictionaries.seedDefaults'
+  ]) assert.match(source, new RegExp(action.replace('.', '\\.')))
+  assert.match(source, /tagDictionaries/)
+  assert.match(source, /DEFAULT_DICTIONARIES/)
+})
+
+test('素材保存通过服务端规则推导五行', () => {
+  assert.match(source, /normalizeOutfit/)
+  assert.match(source, /normalizeAccessory/)
+  assert.match(source, /validatePublishMaterial/)
+})

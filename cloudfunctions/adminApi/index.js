@@ -4,6 +4,12 @@ const {
   buildDateRange
 } = require('./calendar-rules')
 const { insertCalendarRecommendation } = require('./calendar-insert')
+const { DEFAULT_DICTIONARIES } = require('./tag-defaults')
+const {
+  normalizeAccessory,
+  normalizeOutfit,
+  validatePublishMaterial
+} = require('./material-rules')
 
 const app = cloudbase.init({
   env: cloudbase.SYMBOL_CURRENT_ENV
@@ -75,6 +81,10 @@ const ACTION_PERMISSIONS = {
   'calendarRecommendations.get': 'recommendations.read',
   'calendarRecommendations.generate': 'recommendations.write',
   'calendarRecommendations.publicRange': null,
+  'dictionaries.list': 'configs.read',
+  'dictionaries.save': 'configs.write',
+  'dictionaries.setStatus': 'configs.write',
+  'dictionaries.seedDefaults': 'configs.write',
   'content.list': 'content.read',
   'content.get': 'content.read',
   'content.save': 'content.write',
@@ -93,6 +103,7 @@ const COLLECTION_MAP = {
   accessories: 'accessories',
   recommendations: 'dailyRecommendations',
   calendarRecommendations: 'dailyCalendarRecommendations',
+  dictionaries: 'tagDictionaries',
   content: 'contentConfigs'
 }
 
@@ -351,8 +362,21 @@ function sanitizeOutfit(input) {
     seasonTags: safeArray(input.seasonTags, 4),
     weatherTags: safeArray(input.weatherTags),
     styleTags: safeArray(input.styleTags),
-    temperatureMin: safeNumber(input.temperatureMin, 0, -50, 60),
-    temperatureMax: safeNumber(input.temperatureMax, 35, -50, 60),
+    primaryColorCodes: safeArray(input.primaryColorCodes, 3),
+    accentColorCodes: safeArray(input.accentColorCodes),
+    elementCodes: safeArray(input.elementCodes, 5),
+    sceneCodes: safeArray(input.sceneCodes),
+    seasonCodes: safeArray(input.seasonCodes),
+    weatherCodes: safeArray(input.weatherCodes),
+    temperatureMin: input.temperatureMin === undefined
+      ? undefined
+      : safeNumber(input.temperatureMin, 0, -50, 60),
+    temperatureMax: input.temperatureMax === undefined
+      ? undefined
+      : safeNumber(input.temperatureMax, 35, -50, 60),
+    waterproof: Boolean(input.waterproof),
+    windproof: Boolean(input.windproof),
+    breathable: Boolean(input.breathable),
     gender: safeString(input.gender || 'female', 20),
     priority: safeNumber(input.priority, 0, -100, 100),
     inventoryStatus: safeString(input.inventoryStatus || 'available', 20),
@@ -370,11 +394,151 @@ function sanitizeAccessory(input) {
     colorTags: safeArray(input.colorTags),
     elementTags: safeArray(input.elementTags, 5),
     sceneTags: safeArray(input.sceneTags),
+    primaryColorCodes: safeArray(input.primaryColorCodes, 3),
+    elementCodes: safeArray(input.elementCodes, 5),
+    sceneCodes: safeArray(input.sceneCodes),
+    accessoryTypeCode: safeString(input.accessoryTypeCode, 40),
     priority: safeNumber(input.priority, 0, -100, 100),
     status: ['draft', 'published', 'disabled'].includes(input.status)
       ? input.status
       : 'draft'
   }
+}
+
+async function enabledDictionaries() {
+  const result = await db.collection('tagDictionaries')
+    .where({ enabled: true, isDeleted: command.neq(true) })
+    .limit(100)
+    .get()
+  return result.data
+}
+
+function normalizeMaterial(kind, input, dictionaries) {
+  try {
+    return kind === 'outfit'
+      ? normalizeOutfit(input, dictionaries)
+      : normalizeAccessory(input, dictionaries)
+  } catch (error) {
+    throw new ApiError('VALIDATION_ERROR', error.message)
+  }
+}
+
+async function saveMaterial(kind, payload, admin, requestId) {
+  const dictionaries = await enabledDictionaries()
+  const normalized = normalizeMaterial(kind, payload, dictionaries)
+  return saveDocument(
+    kind === 'outfit' ? 'outfits' : 'accessories',
+    normalized,
+    admin,
+    requestId,
+    kind === 'outfit' ? sanitizeOutfit : sanitizeAccessory
+  )
+}
+
+async function setMaterialStatus(kind, payload, admin, requestId) {
+  if (payload.status === 'published') {
+    const collectionName = kind === 'outfit' ? 'outfits' : 'accessories'
+    const current = await getDocument(collectionName, payload.id)
+    const normalized = normalizeMaterial(kind, current, await enabledDictionaries())
+    try {
+      validatePublishMaterial(kind, normalized)
+    } catch (error) {
+      throw new ApiError('VALIDATION_ERROR', error.message)
+    }
+  }
+  return setStatus(
+    kind === 'outfit' ? 'outfits' : 'accessories',
+    payload,
+    admin,
+    requestId
+  )
+}
+
+function sanitizeDictionary(input) {
+  const types = ['element', 'color', 'scene', 'season', 'weather', 'accessoryType']
+  const elements = ['metal', 'wood', 'water', 'fire', 'earth']
+  const type = safeString(input.type, 30)
+  if (!types.includes(type)) throw new ApiError('VALIDATION_ERROR', '字典类型无效')
+  const colorHex = type === 'color' ? requiredString(input.colorHex, '颜色值', 20) : ''
+  const elementCode = type === 'color' ? requiredString(input.elementCode, '五行归属', 20) : ''
+  if (type === 'color' && !/^#[0-9a-f]{6}$/i.test(colorHex)) {
+    throw new ApiError('VALIDATION_ERROR', '颜色值必须为6位十六进制')
+  }
+  if (type === 'color' && !elements.includes(elementCode)) {
+    throw new ApiError('VALIDATION_ERROR', '颜色五行归属无效')
+  }
+  return {
+    type,
+    code: requiredString(input.code, '字典编码', 40),
+    name: requiredString(input.name, '字典名称', 40),
+    colorHex,
+    elementCode,
+    order: safeNumber(input.order, 0, -1000, 1000),
+    enabled: input.enabled !== false,
+    systemLocked: Boolean(input.systemLocked),
+    status: 'published'
+  }
+}
+
+async function saveDictionary(payload, admin, requestId) {
+  const current = payload._id ? await getDocument('tagDictionaries', payload._id) : null
+  const data = sanitizeDictionary({
+    ...payload,
+    type: current?.type || payload.type,
+    code: current?.code || payload.code,
+    systemLocked: current?.systemLocked || false
+  })
+  return saveDocument('tagDictionaries', payload, admin, requestId, () => data)
+}
+
+async function setDictionaryStatus(payload, admin, requestId) {
+  const current = await getDocument('tagDictionaries', payload.id)
+  if (current.type === 'element' && payload.enabled === false) {
+    throw new ApiError('VALIDATION_ERROR', '五行字典不可停用')
+  }
+  if (safeNumber(payload.version, 0, 0) !== current.version) {
+    throw new ApiError('VERSION_CONFLICT', '数据版本已变化，请刷新后重试')
+  }
+  await db.collection('tagDictionaries').doc(payload.id).update({
+    data: {
+      enabled: payload.enabled !== false,
+      version: current.version + 1,
+      updatedAt: db.serverDate(),
+      updatedBy: admin.uid
+    }
+  })
+  await writeAudit(admin, 'setStatus', 'tagDictionaries', payload.id, String(payload.enabled), requestId)
+  return { updated: 1, version: current.version + 1 }
+}
+
+async function seedDefaultDictionaries(admin, requestId) {
+  let created = 0
+  let skipped = 0
+  for (const item of DEFAULT_DICTIONARIES) {
+    const existing = await db.collection('tagDictionaries').where({
+      type: item.type,
+      code: item.code,
+      isDeleted: command.neq(true)
+    }).limit(1).get()
+    if (existing.data.length) {
+      skipped += 1
+      continue
+    }
+    await db.collection('tagDictionaries').add({
+      ...item,
+      status: 'published',
+      version: 1,
+      createdAt: db.serverDate(),
+      createdBy: admin.uid,
+      updatedAt: db.serverDate(),
+      updatedBy: admin.uid,
+      isDeleted: false,
+      deletedAt: null
+    })
+    created += 1
+  }
+  await writeAudit(admin, 'seedDefaults', 'tagDictionaries', '', `created=${created}`, requestId)
+  return { created, skipped }
 }
 
 function sanitizeContent(input) {
@@ -760,6 +924,21 @@ async function saveConfigs(payload, admin, requestId) {
 
 async function route(action, payload, admin, requestId) {
   if (action === 'dashboard.summary') return dashboardSummary()
+  if (action === 'dictionaries.save') {
+    return saveDictionary(payload, admin, requestId)
+  }
+  if (action === 'dictionaries.setStatus') {
+    return setDictionaryStatus(payload, admin, requestId)
+  }
+  if (action === 'dictionaries.seedDefaults') {
+    return seedDefaultDictionaries(admin, requestId)
+  }
+  if (action === 'outfits.setStatus') {
+    return setMaterialStatus('outfit', payload, admin, requestId)
+  }
+  if (action === 'accessories.setStatus') {
+    return setMaterialStatus('accessory', payload, admin, requestId)
+  }
 
   const [domain, operation] = action.split('.')
   const collectionName = COLLECTION_MAP[domain]
@@ -769,6 +948,8 @@ async function route(action, payload, admin, requestId) {
         ? 'title'
         : domain === 'accessories'
           ? 'name'
+          : domain === 'dictionaries'
+            ? 'name'
           : domain === 'content'
             ? 'title'
             : null
@@ -784,10 +965,10 @@ async function route(action, payload, admin, requestId) {
   }
 
   if (action === 'outfits.save') {
-    return saveDocument('outfits', payload, admin, requestId, sanitizeOutfit)
+    return saveMaterial('outfit', payload, admin, requestId)
   }
   if (action === 'accessories.save') {
-    return saveDocument('accessories', payload, admin, requestId, sanitizeAccessory)
+    return saveMaterial('accessory', payload, admin, requestId)
   }
   if (action === 'recommendations.save') {
     return saveDocument(
