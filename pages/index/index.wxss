@@ -237,8 +237,28 @@ page {
   font-weight: 600;
 }
 
-.weather-status {
+.centered-date {
+  justify-content: center;
+  margin-bottom: 22rpx;
+}
+
+.weather-city-picker {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.weather-update {
   margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4rpx;
+  color: #9b8a70;
+  font-size: 22rpx;
+}
+
+.weather-status {
   color: #a29176;
   font-size: 22rpx;
   font-weight: 400;

@@ -22,6 +22,14 @@
     }
   },
   "componentFramework": "glass-easel",
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于获取所在城市天气并生成穿衣建议"
+    }
+  },
+  "requiredPrivateInfos": [
+    "getLocation"
+  ],
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents",
   "cloud": true

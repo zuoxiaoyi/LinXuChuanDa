@@ -5,37 +5,13 @@
   background="#fffdf7"
 ></navigation-bar>
 
-<scroll-view
-  class="page-scroll"
-  scroll-y
-  enhanced
-  bounces="{{false}}"
-  show-scrollbar="{{false}}"
-  enable-back-to-top
->
+<scroll-view class="page-scroll" scroll-y enhanced bounces="{{false}}" show-scrollbar="{{false}}" enable-back-to-top>
 <view class="page-shell">
   <image class="paper-bg" src="/images/common/bg.jpg" mode="aspectFill" />
-
   <view class="content">
-    <view class="top-row">
-      <view>
-        <view class="date-heading">
-          <text class="date-text">{{selectedDay.dateText}}</text>
-          <text class="week-text">{{selectedDay.weekText}}</text>
-        </view>
-        <picker mode="region" value="{{regionValue}}" bindchange="onRegionChange">
-          <view class="city-picker">
-            <van-icon name="location-o" size="28rpx" />
-            <text>{{cityName}}</text>
-            <text class="change-city">切换城市</text>
-          </view>
-        </picker>
-      </view>
-
-      <view class="account-entry" bindtap="onGoLogin">
-        <van-icon name="{{isLogin ? 'user-circle-o' : 'user-o'}}" size="38rpx" />
-        <text>{{isLogin ? '我的' : '登录'}}</text>
-      </view>
+    <view class="date-heading centered-date">
+      <text class="date-text">{{selectedDay.dateText}}</text>
+      <text class="week-text">{{selectedDay.weekText}}</text>
     </view>
 
     <view class="color-panel">
@@ -88,10 +64,19 @@
 
     <view class="weather-card">
       <view class="weather-title">
-        <van-icon name="location-o" size="30rpx" />
-        <text>{{cityName}}</text>
-        <text class="weather-status">{{weather.status}}</text>
+        <picker mode="region" value="{{regionValue}}" bindchange="onRegionChange">
+          <view class="city-picker weather-city-picker">
+            <van-icon name="location-o" size="30rpx" />
+            <text>{{cityName}}</text>
+            <text class="change-city">切换城市</text>
+          </view>
+        </picker>
+        <view class="weather-update">
+          <text class="weather-status">{{weather.status}}</text>
+          <text>{{weather.updatedText}}</text>
+        </view>
       </view>
+
       <view class="weather-body">
         <text class="weather-icon">☀️</text>
         <text class="weather-temp">{{weather.temperature}}</text>
@@ -116,9 +101,9 @@
       <view class="advice-block skincare-block">
         <view class="advice-title">
           <van-icon name="flower-o" size="30rpx" color="#a77d3f" />
-          <text>护肤建议</text>
+          <text>出行护理</text>
         </view>
-        <text class="advice-text">{{weather.skincareAdvice}}</text>
+        <text class="advice-text">{{weather.careAdvice}}</text>
       </view>
     </view>
   </view>
