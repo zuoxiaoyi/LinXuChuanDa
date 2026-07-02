@@ -1,5 +1,5 @@
 const https = require('node:https')
-const { createJwt, normalizeWeather } = require('./weather-core')
+const { createJwt, decodeJsonBody, normalizeWeather } = require('./weather-core')
 
 const cache = new Map()
 const CACHE_MS = 10 * 60 * 1000
@@ -43,16 +43,21 @@ function requestJson(path, params, weatherConfig) {
     const request = https.get(url, {
       headers: {
         Authorization: `Bearer ${token}`,
+        'Accept-Encoding': 'gzip',
         'User-Agent': 'linxu-weather-api/1.0'
       },
       timeout: 8000
     }, response => {
-      let body = ''
-      response.setEncoding('utf8')
-      response.on('data', chunk => { body += chunk })
+      const chunks = []
+      response.on('data', chunk => {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+      })
       response.on('end', () => {
         try {
-          const data = JSON.parse(body)
+          const data = decodeJsonBody(
+            Buffer.concat(chunks),
+            response.headers['content-encoding']
+          )
           if (data.code !== '200') throw new Error(`QWEATHER_${data.code || response.statusCode}`)
           resolve(data)
         } catch (error) {

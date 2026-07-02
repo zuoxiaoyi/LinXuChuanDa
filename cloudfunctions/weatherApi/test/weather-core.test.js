@@ -1,13 +1,22 @@
 const assert = require('node:assert/strict')
 const { generateKeyPairSync, verify } = require('node:crypto')
 const test = require('node:test')
+const { gzipSync } = require('node:zlib')
 
 const {
   base64UrlDecode,
   buildDailyAdvice,
   createJwt,
+  decodeJsonBody,
   normalizeWeather
 } = require('../weather-core')
+
+test('解压 gzip 响应后解析 JSON', () => {
+  const payload = { code: '200', location: [{ id: '101200101' }] }
+  const body = gzipSync(Buffer.from(JSON.stringify(payload)))
+
+  assert.deepEqual(decodeJsonBody(body, 'gzip'), payload)
+})
 
 test('JWT 只包含和风天气要求的字段并可通过 Ed25519 验签', () => {
   const { privateKey, publicKey } = generateKeyPairSync('ed25519')

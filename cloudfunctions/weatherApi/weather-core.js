@@ -1,4 +1,5 @@
 const { createPrivateKey, sign } = require('node:crypto')
+const { gunzipSync } = require('node:zlib')
 
 function encode(value) {
   return Buffer.from(
@@ -8,6 +9,14 @@ function encode(value) {
 
 function base64UrlDecode(value) {
   return Buffer.from(value, 'base64url').toString('utf8')
+}
+
+function decodeJsonBody(body, contentEncoding = '') {
+  const buffer = Buffer.isBuffer(body) ? body : Buffer.from(body)
+  const decoded = String(contentEncoding).toLowerCase().includes('gzip')
+    ? gunzipSync(buffer)
+    : buffer
+  return JSON.parse(decoded.toString('utf8'))
 }
 
 function createJwt(config, nowSeconds = Math.floor(Date.now() / 1000)) {
@@ -96,5 +105,6 @@ module.exports = {
   base64UrlDecode,
   buildDailyAdvice,
   createJwt,
+  decodeJsonBody,
   normalizeWeather
 }
