@@ -4,6 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import MediaField from '@/components/MediaField.vue'
+import { useDictionaries } from '@/composables/useDictionaries'
 import { callAdminApi } from '@/services/admin-api'
 import { resolveCloudFileUrls } from '@/services/media'
 import type { PageResult } from '@/types/api'
@@ -17,28 +18,26 @@ const drawerVisible = ref(false)
 const list = ref<OutfitRow[]>([])
 const total = ref(0)
 const query = reactive({ page: 1, pageSize: 20, keyword: '', status: '' })
+const { load: loadDictionaries, options, elementsForColors } = useDictionaries()
 
 const blankOutfit = (): Outfit => ({
   title: '',
   description: '',
   coverUrl: '',
-  sceneTags: [],
-  colorTags: [],
-  elementTags: [],
-  seasonTags: [],
-  weatherTags: [],
-  styleTags: [],
+  primaryColorCodes: [],
+  accentColorCodes: [],
+  elementCodes: [],
+  sceneCodes: [],
+  seasonCodes: [],
+  weatherCodes: [],
+  waterproof: false,
+  windproof: false,
+  breathable: false,
+  inventoryStatus: 'available',
   priority: 0,
   status: 'draft'
 })
-
 const form = reactive<Outfit>(blankOutfit())
-const tagOptions = {
-  scenes: ['通勤', '休闲', '度假', '约会', '日常', '轻运动'],
-  elements: ['金', '木', '水', '火', '土'],
-  seasons: ['春', '夏', '秋', '冬'],
-  weather: ['晴', '多云', '雨', '雪', '大风', '降温']
-}
 
 function toTagArray(value: unknown) {
   if (Array.isArray(value)) {
@@ -56,12 +55,13 @@ function normalizeOutfit(row: Outfit | any): OutfitRow {
   return {
     ...blankOutfit(),
     ...row,
+    primaryColorCodes: toTagArray(row?.primaryColorCodes),
+    accentColorCodes: toTagArray(row?.accentColorCodes),
+    elementCodes: toTagArray(row?.elementCodes),
+    sceneCodes: toTagArray(row?.sceneCodes),
+    seasonCodes: toTagArray(row?.seasonCodes),
+    weatherCodes: toTagArray(row?.weatherCodes),
     sceneTags: sceneTags.length ? sceneTags : legacyTags,
-    colorTags: toTagArray(row?.colorTags),
-    elementTags: toTagArray(row?.elementTags),
-    seasonTags: toTagArray(row?.seasonTags),
-    weatherTags: toTagArray(row?.weatherTags),
-    styleTags: toTagArray(row?.styleTags),
     coverPreviewUrl: ''
   }
 }
@@ -95,8 +95,8 @@ function openEdit(row: Outfit | any) {
 }
 
 async function save() {
-  if (!form.title || !form.description || !form.sceneTags.length) {
-    ElMessage.warning('请填写名称、说明和至少一个场景标签')
+  if (!form.title || !form.description) {
+    ElMessage.warning('请填写名称和说明')
     return
   }
   saving.value = true
@@ -130,7 +130,18 @@ async function setStatus(row: Outfit | any, status: Outfit['status']) {
   }
 }
 
-onMounted(load)
+function dictionaryName(type: Parameters<typeof options>[0], code: string) {
+  return options(type).find(item => item.code === code)?.name || code
+}
+
+function dictionaryNames(type: Parameters<typeof options>[0], codes: unknown) {
+  return toTagArray(codes).map(code => dictionaryName(type, code)).join(' · ')
+}
+
+onMounted(async () => {
+  await loadDictionaries()
+  await load()
+})
 </script>
 
 <template>
@@ -178,12 +189,15 @@ onMounted(load)
         </el-table-column>
         <el-table-column label="场景" min-width="150">
           <template #default="{ row }">
-            <el-tag v-for="tag in row.sceneTags" :key="tag" effect="plain">{{ tag }}</el-tag>
+            <el-tag v-for="code in row.sceneCodes" :key="code" effect="plain">
+              {{ dictionaryName('scene', code) }}
+            </el-tag>
+            <el-tag v-if="!row.sceneCodes.length" type="warning" effect="plain">待补标签</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="五行/颜色" min-width="170">
           <template #default="{ row }">
-            {{ row.elementTags.concat(row.colorTags).join(' · ') || '—' }}
+            {{ dictionaryNames('element', row.elementCodes) || '待补标签' }}
           </template>
         </el-table-column>
         <el-table-column prop="priority" label="优先级" width="90" />
@@ -235,26 +249,36 @@ onMounted(load)
         <el-input v-model="form.description" type="textarea" :rows="4" maxlength="500" show-word-limit />
       </el-form-item>
       <el-form-item label="场景标签">
-        <el-select v-model="form.sceneTags" multiple allow-create filterable style="width: 100%">
-          <el-option v-for="item in tagOptions.scenes" :key="item" :label="item" :value="item" />
+        <el-select v-model="form.sceneCodes" multiple filterable style="width: 100%">
+          <el-option v-for="item in options('scene')" :key="item.code" :label="item.name" :value="item.code" />
         </el-select>
       </el-form-item>
-      <el-form-item label="五行标签">
-        <el-select v-model="form.elementTags" multiple style="width: 100%">
-          <el-option v-for="item in tagOptions.elements" :key="item" :label="item" :value="item" />
+      <el-form-item label="主色">
+        <el-select v-model="form.primaryColorCodes" multiple filterable :multiple-limit="3" style="width: 100%">
+          <el-option v-for="item in options('color')" :key="item.code" :label="item.name" :value="item.code" />
         </el-select>
       </el-form-item>
-      <el-form-item label="颜色标签">
-        <el-select v-model="form.colorTags" multiple allow-create filterable style="width: 100%" />
+      <el-form-item label="辅助色">
+        <el-select v-model="form.accentColorCodes" multiple filterable style="width: 100%">
+          <el-option v-for="item in options('color')" :key="item.code" :label="item.name" :value="item.code" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="自动推导五行">
+        <el-tag
+          v-for="item in elementsForColors([...form.primaryColorCodes, ...form.accentColorCodes])"
+          :key="item"
+        >
+          {{ item }}
+        </el-tag>
       </el-form-item>
       <el-form-item label="季节标签">
-        <el-select v-model="form.seasonTags" multiple style="width: 100%">
-          <el-option v-for="item in tagOptions.seasons" :key="item" :label="item" :value="item" />
+        <el-select v-model="form.seasonCodes" multiple style="width: 100%">
+          <el-option v-for="item in options('season')" :key="item.code" :label="item.name" :value="item.code" />
         </el-select>
       </el-form-item>
       <el-form-item label="天气标签">
-        <el-select v-model="form.weatherTags" multiple style="width: 100%">
-          <el-option v-for="item in tagOptions.weather" :key="item" :label="item" :value="item" />
+        <el-select v-model="form.weatherCodes" multiple style="width: 100%">
+          <el-option v-for="item in options('weather')" :key="item.code" :label="item.name" :value="item.code" />
         </el-select>
       </el-form-item>
       <div class="two-column">
@@ -265,6 +289,17 @@ onMounted(load)
           <el-input-number v-model="form.temperatureMax" :min="-30" :max="50" />
         </el-form-item>
       </div>
+      <el-form-item label="库存状态">
+        <el-radio-group v-model="form.inventoryStatus">
+          <el-radio value="available">可用</el-radio>
+          <el-radio value="unavailable">不可用</el-radio>
+        </el-radio-group>
+      </el-form-item>
+      <el-form-item label="服装能力">
+        <el-checkbox v-model="form.waterproof">防水</el-checkbox>
+        <el-checkbox v-model="form.windproof">防风</el-checkbox>
+        <el-checkbox v-model="form.breathable">透气</el-checkbox>
+      </el-form-item>
       <el-form-item label="运营优先级">
         <el-input-number v-model="form.priority" :min="-100" :max="100" />
       </el-form-item>

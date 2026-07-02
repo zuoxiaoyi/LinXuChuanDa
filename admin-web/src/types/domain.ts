@@ -32,12 +32,22 @@ export interface Outfit {
   title: string
   description: string
   coverUrl: string
-  sceneTags: string[]
-  colorTags: string[]
-  elementTags: string[]
-  seasonTags: string[]
-  weatherTags: string[]
-  styleTags: string[]
+  primaryColorCodes: string[]
+  accentColorCodes: string[]
+  elementCodes: string[]
+  sceneCodes: string[]
+  seasonCodes: string[]
+  weatherCodes: string[]
+  waterproof: boolean
+  windproof: boolean
+  breathable: boolean
+  inventoryStatus: 'available' | 'unavailable'
+  sceneTags?: string[]
+  colorTags?: string[]
+  elementTags?: string[]
+  seasonTags?: string[]
+  weatherTags?: string[]
+  styleTags?: string[]
   temperatureMin?: number
   temperatureMax?: number
   priority: number
@@ -51,9 +61,13 @@ export interface Accessory {
   name: string
   description: string
   imageUrl: string
-  colorTags: string[]
-  elementTags: string[]
-  sceneTags: string[]
+  primaryColorCodes: string[]
+  elementCodes: string[]
+  sceneCodes: string[]
+  accessoryTypeCode: string
+  colorTags?: string[]
+  elementTags?: string[]
+  sceneTags?: string[]
   priority: number
   status: PublishStatus
   version?: number

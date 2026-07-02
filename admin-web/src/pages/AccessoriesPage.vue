@@ -4,6 +4,7 @@ import { ElMessage } from 'element-plus'
 import { Plus, Search } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import MediaField from '@/components/MediaField.vue'
+import { useDictionaries } from '@/composables/useDictionaries'
 import { callAdminApi } from '@/services/admin-api'
 import { resolveCloudFileUrls } from '@/services/media'
 import type { PageResult } from '@/types/api'
@@ -17,14 +18,16 @@ const drawerVisible = ref(false)
 const list = ref<AccessoryRow[]>([])
 const total = ref(0)
 const query = reactive({ page: 1, pageSize: 20, keyword: '', status: '' })
+const { load: loadDictionaries, options, elementsForColors } = useDictionaries()
 
 const blankAccessory = (): Accessory => ({
   name: '',
   description: '',
   imageUrl: '',
-  colorTags: [],
-  elementTags: [],
-  sceneTags: [],
+  primaryColorCodes: [],
+  elementCodes: [],
+  sceneCodes: [],
+  accessoryTypeCode: '',
   priority: 0,
   status: 'draft'
 })
@@ -44,9 +47,9 @@ function normalizeAccessory(row: Accessory | any): AccessoryRow {
   return {
     ...blankAccessory(),
     ...row,
-    colorTags: toTagArray(row?.colorTags),
-    elementTags: toTagArray(row?.elementTags),
-    sceneTags: toTagArray(row?.sceneTags),
+    primaryColorCodes: toTagArray(row?.primaryColorCodes),
+    elementCodes: toTagArray(row?.elementCodes),
+    sceneCodes: toTagArray(row?.sceneCodes),
     imagePreviewUrl: ''
   }
 }
@@ -75,8 +78,8 @@ function edit(row?: Accessory | any) {
 }
 
 async function save() {
-  if (!form.name || !form.description || !form.elementTags.length) {
-    ElMessage.warning('请填写名称、说明和五行标签')
+  if (!form.name || !form.description) {
+    ElMessage.warning('请填写名称和说明')
     return
   }
   saving.value = true
@@ -107,7 +110,18 @@ async function setStatus(row: Accessory | any) {
   }
 }
 
-onMounted(load)
+function dictionaryName(type: Parameters<typeof options>[0], code: string) {
+  return options(type).find(item => item.code === code)?.name || code
+}
+
+function dictionaryNames(type: Parameters<typeof options>[0], codes: unknown) {
+  return toTagArray(codes).map(code => dictionaryName(type, code)).join(' · ')
+}
+
+onMounted(async () => {
+  await loadDictionaries()
+  await load()
+})
 </script>
 
 <template>
@@ -148,10 +162,14 @@ onMounted(load)
           </template>
         </el-table-column>
         <el-table-column label="五行" min-width="130">
-          <template #default="{ row }">{{ row.elementTags.join(' · ') || '—' }}</template>
+          <template #default="{ row }">
+            {{ dictionaryNames('element', row.elementCodes) || '待补标签' }}
+          </template>
         </el-table-column>
         <el-table-column label="场景" min-width="180">
-          <template #default="{ row }">{{ row.sceneTags.join(' · ') || '—' }}</template>
+          <template #default="{ row }">
+            {{ dictionaryNames('scene', row.sceneCodes) || '待补标签' }}
+          </template>
         </el-table-column>
         <el-table-column prop="priority" label="优先级" width="90" />
         <el-table-column label="状态" width="100">
@@ -189,16 +207,25 @@ onMounted(load)
       <el-form-item label="说明">
         <el-input v-model="form.description" type="textarea" :rows="3" maxlength="160" show-word-limit />
       </el-form-item>
-      <el-form-item label="五行标签">
-        <el-select v-model="form.elementTags" multiple style="width: 100%">
-          <el-option v-for="item in ['金','木','水','火','土']" :key="item" :label="item" :value="item" />
+      <el-form-item label="主色">
+        <el-select v-model="form.primaryColorCodes" multiple filterable :multiple-limit="3" style="width: 100%">
+          <el-option v-for="item in options('color')" :key="item.code" :label="item.name" :value="item.code" />
         </el-select>
       </el-form-item>
-      <el-form-item label="颜色标签">
-        <el-select v-model="form.colorTags" multiple allow-create filterable style="width: 100%" />
+      <el-form-item label="自动推导五行">
+        <el-tag v-for="item in elementsForColors(form.primaryColorCodes)" :key="item">
+          {{ item }}
+        </el-tag>
       </el-form-item>
       <el-form-item label="场景标签">
-        <el-select v-model="form.sceneTags" multiple allow-create filterable style="width: 100%" />
+        <el-select v-model="form.sceneCodes" multiple filterable style="width: 100%">
+          <el-option v-for="item in options('scene')" :key="item.code" :label="item.name" :value="item.code" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="配饰类型">
+        <el-select v-model="form.accessoryTypeCode" filterable style="width: 100%">
+          <el-option v-for="item in options('accessoryType')" :key="item.code" :label="item.name" :value="item.code" />
+        </el-select>
       </el-form-item>
       <el-form-item label="优先级">
         <el-input-number v-model="form.priority" :min="-100" :max="100" />
