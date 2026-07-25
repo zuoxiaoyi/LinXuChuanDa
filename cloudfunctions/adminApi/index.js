@@ -88,6 +88,7 @@ const ACTION_PERMISSIONS = {
   'dictionaries.seedDefaults': 'configs.write',
   'content.list': 'content.read',
   'content.get': 'content.read',
+  'content.publicGet': null,
   'content.save': 'content.write',
   'content.publish': 'content.publish',
   'users.list': 'users.read',
@@ -106,6 +107,14 @@ const COLLECTION_MAP = {
   calendarRecommendations: 'dailyCalendarRecommendations',
   dictionaries: 'tagDictionaries',
   content: 'contentConfigs'
+}
+
+const ELEMENT_NAME_BY_CODE = {
+  wood: '木',
+  fire: '火',
+  earth: '土',
+  metal: '金',
+  water: '水'
 }
 
 class ApiError extends Error {
@@ -241,16 +250,14 @@ function assertPermission(admin, permission) {
 async function writeAudit(admin, action, targetType, targetId, summary, requestId) {
   try {
     await db.collection('auditLogs').add({
-      data: {
-        operatorUid: admin.uid,
-        operatorName: admin.displayName,
-        action,
-        targetType,
-        targetId: targetId || '',
-        summary: safeString(summary, 500),
-        requestId,
-        createdAt: db.serverDate()
-      }
+      operatorUid: admin.uid,
+      operatorName: admin.displayName,
+      action,
+      targetType,
+      targetId: targetId || '',
+      summary: safeString(summary, 500),
+      requestId,
+      createdAt: db.serverDate()
     })
   } catch (error) {
     console.error('audit log write failed:', error)
@@ -324,30 +331,27 @@ async function saveDocument(collectionName, input, admin, requestId, sanitizer) 
 
   if (!id) {
     const result = await db.collection(collectionName).add({
-      data: {
-        ...nowData,
-        version: 1,
-        createdAt: db.serverDate(),
-        createdBy: admin.uid
-      }
+      ...nowData,
+      version: 1,
+      createdAt: db.serverDate(),
+      createdBy: admin.uid
     })
     await writeAudit(admin, 'create', collectionName, result._id, data.title || data.name, requestId)
     return { _id: result._id, ...data, version: 1 }
   }
 
   const current = await getDocument(collectionName, id)
-  const expectedVersion = safeNumber(input.version, 0, 0)
-  if (expectedVersion !== current.version) {
+  const currentVersion = safeNumber(current?.version, 0, 0)
+  const expectedVersion = safeNumber(input.version, currentVersion)
+  if (expectedVersion !== currentVersion) {
     throw new ApiError('VERSION_CONFLICT', '数据已被其他管理员修改，请刷新后重试')
   }
   await db.collection(collectionName).doc(id).update({
-    data: {
-      ...nowData,
-      version: current.version + 1
-    }
+    ...nowData,
+    version: currentVersion + 1
   })
   await writeAudit(admin, 'update', collectionName, id, data.title || data.name, requestId)
-  return { _id: id, ...data, version: current.version + 1 }
+  return { _id: id, ...data, version: currentVersion + 1 }
 }
 
 function sanitizeOutfit(input) {
@@ -412,6 +416,18 @@ async function enabledDictionaries() {
     .limit(100)
     .get()
   return result.data
+}
+
+async function enabledColorNamesByElement() {
+  const colors = (await enabledDictionaries())
+    .filter(item => item.type === 'color' && ELEMENT_NAME_BY_CODE[item.elementCode])
+    .sort((a, b) => safeNumber(a.order) - safeNumber(b.order))
+
+  return colors.reduce((map, item) => {
+    const elementName = ELEMENT_NAME_BY_CODE[item.elementCode]
+    map[elementName] = [...(map[elementName] || []), item.name]
+    return map
+  }, {})
 }
 
 function normalizeMaterial(kind, input, dictionaries) {
@@ -501,12 +517,10 @@ async function setDictionaryStatus(payload, admin, requestId) {
     throw new ApiError('VERSION_CONFLICT', '数据版本已变化，请刷新后重试')
   }
   await db.collection('tagDictionaries').doc(payload.id).update({
-    data: {
-      enabled: payload.enabled !== false,
-      version: current.version + 1,
-      updatedAt: db.serverDate(),
-      updatedBy: admin.uid
-    }
+    enabled: payload.enabled !== false,
+    version: current.version + 1,
+    updatedAt: db.serverDate(),
+    updatedBy: admin.uid
   })
   await writeAudit(admin, 'setStatus', 'tagDictionaries', payload.id, String(payload.enabled), requestId)
   return { updated: 1, version: current.version + 1 }
@@ -515,6 +529,9 @@ async function setDictionaryStatus(payload, admin, requestId) {
 async function seedDefaultDictionaries(admin, requestId) {
   let created = 0
   let skipped = 0
+  const activeDefaultColorCodes = new Set(
+    DEFAULT_DICTIONARIES.filter(item => item.type === 'color').map(item => item.code)
+  )
   for (const item of DEFAULT_DICTIONARIES) {
     const existing = await db.collection('tagDictionaries').where({
       type: item.type,
@@ -538,6 +555,15 @@ async function seedDefaultDictionaries(admin, requestId) {
     })
     created += 1
   }
+  await db.collection('tagDictionaries').where({
+    type: 'color',
+    code: command.nin([...activeDefaultColorCodes]),
+    isDeleted: command.neq(true)
+  }).update({
+    enabled: false,
+    updatedAt: db.serverDate(),
+    updatedBy: admin.uid
+  })
   await writeAudit(admin, 'seedDefaults', 'tagDictionaries', '', `created=${created}`, requestId)
   return { created, skipped }
 }
@@ -555,6 +581,34 @@ function sanitizeContent(input) {
     status: ['draft', 'published', 'disabled'].includes(input.status)
       ? input.status
       : 'draft'
+  }
+}
+
+async function publicContentGet(payload) {
+  const key = requiredString(payload.key, '内容类型', 40)
+  const locale = safeString(payload.locale || 'zh-CN', 20)
+  const allowedKeys = ['about', 'user_agreement', 'privacy', 'share_copy']
+  if (!allowedKeys.includes(key)) {
+    throw new ApiError('VALIDATION_ERROR', '不支持的内容类型')
+  }
+
+  const result = await db.collection('contentConfigs').where({
+    key,
+    locale,
+    status: 'published',
+    isDeleted: command.neq(true)
+  }).orderBy('updatedAt', 'desc').limit(1).get()
+
+  const doc = result.data[0]
+  if (!doc) {
+    throw new ApiError('NOT_FOUND', '内容暂未发布')
+  }
+
+  return {
+    key: doc.key,
+    title: doc.title,
+    content: doc.content,
+    updatedAt: doc.updatedAt
   }
 }
 
@@ -592,12 +646,10 @@ async function setStatus(collectionName, payload, admin, requestId) {
     throw new ApiError('VALIDATION_ERROR', '非法状态')
   }
   await db.collection(collectionName).doc(payload.id).update({
-    data: {
-      status,
-      version: current.version + 1,
-      updatedAt: db.serverDate(),
-      updatedBy: admin.uid
-    }
+    status,
+    version: current.version + 1,
+    updatedAt: db.serverDate(),
+    updatedBy: admin.uid
   })
   await writeAudit(admin, 'setStatus', collectionName, payload.id, status, requestId)
   return { updated: 1, version: current.version + 1 }
@@ -609,14 +661,12 @@ async function removeDocument(collectionName, payload, admin, requestId) {
     throw new ApiError('VERSION_CONFLICT', '数据版本已变化，请刷新后重试')
   }
   await db.collection(collectionName).doc(payload.id).update({
-    data: {
-      status: 'disabled',
-      isDeleted: true,
-      deletedAt: db.serverDate(),
-      updatedAt: db.serverDate(),
-      updatedBy: admin.uid,
-      version: current.version + 1
-    }
+    status: 'disabled',
+    isDeleted: true,
+    deletedAt: db.serverDate(),
+    updatedAt: db.serverDate(),
+    updatedBy: admin.uid,
+    version: current.version + 1
   })
   await writeAudit(admin, 'remove', collectionName, payload.id, '', requestId)
   return { removed: 1 }
@@ -630,7 +680,7 @@ function validatedDateRange(startDate, endDate) {
   }
 }
 
-function publicCalendarRange(payload) {
+async function publicCalendarRange(payload) {
   const startDate = requiredString(payload.startDate, '开始日期', 10)
   const days = Math.min(7, Math.max(1, Number.parseInt(payload.days, 10) || 7))
   const [year, month, day] = startDate.split('-').map(Number)
@@ -641,9 +691,10 @@ function publicCalendarRange(payload) {
     String(end.getUTCDate()).padStart(2, '0')
   ].join('-')
 
+  const elementColors = await enabledColorNamesByElement()
   return {
     days: validatedDateRange(startDate, endDate)
-      .map(date => buildCalendarRecommendation(date, '2026.1'))
+      .map(date => buildCalendarRecommendation(date, '2026.1', elementColors))
   }
 }
 
@@ -663,28 +714,26 @@ async function generateRecommendations(payload, admin, requestId) {
       continue
     }
     await db.collection('dailyRecommendations').add({
-      data: {
-        date,
-        calendar: {},
-        colorAdvice: { primary: [], secondary: [], avoid: [] },
-        weatherSnapshot: null,
-        dressingAdvice: { text: '', tags: [] },
-        skincareAdvice: { text: '' },
-        bestOutfits: [],
-        secondaryOutfits: [],
-        accessoryIds: [],
-        ruleVersion,
-        generationMode: 'algorithm',
-        manualOverride: false,
-        status: 'draft',
-        version: 1,
-        createdAt: db.serverDate(),
-        createdBy: admin.uid,
-        updatedAt: db.serverDate(),
-        updatedBy: admin.uid,
-        isDeleted: false,
-        deletedAt: null
-      }
+      date,
+      calendar: {},
+      colorAdvice: { primary: [], secondary: [], avoid: [] },
+      weatherSnapshot: null,
+      dressingAdvice: { text: '', tags: [] },
+      skincareAdvice: { text: '' },
+      bestOutfits: [],
+      secondaryOutfits: [],
+      accessoryIds: [],
+      ruleVersion,
+      generationMode: 'algorithm',
+      manualOverride: false,
+      status: 'draft',
+      version: 1,
+      createdAt: db.serverDate(),
+      createdBy: admin.uid,
+      updatedAt: db.serverDate(),
+      updatedBy: admin.uid,
+      isDeleted: false,
+      deletedAt: null
     })
     generated += 1
   }
@@ -702,21 +751,33 @@ async function generateRecommendations(payload, admin, requestId) {
 async function generateCalendarRecommendations(payload, admin, requestId) {
   const dates = validatedDateRange(payload.startDate, payload.endDate)
   const ruleVersion = requiredString(payload.ruleVersion, '规则版本', 30)
+  const elementColors = await enabledColorNamesByElement()
   let generated = 0
   let skipped = 0
 
   for (const date of dates) {
+    const draft = buildCalendarRecommendation(date, ruleVersion, elementColors)
     const existing = await db.collection('dailyCalendarRecommendations').where({
       date,
       isDeleted: command.neq(true)
     }).limit(1).get()
 
     if (existing.data.length) {
-      skipped += 1
+      const existingDoc = existing.data[0]
+      if (existingDoc.generationMode === 'algorithm' && existingDoc.manualOverride !== true) {
+        await db.collection('dailyCalendarRecommendations').doc(existingDoc._id).update({
+          ...draft,
+          version: safeNumber(existingDoc.version, 1, 1) + 1,
+          updatedAt: db.serverDate(),
+          updatedBy: admin.uid
+        })
+        generated += 1
+      } else {
+        skipped += 1
+      }
       continue
     }
 
-    const draft = buildCalendarRecommendation(date, ruleVersion)
     const result = await insertCalendarRecommendation(() =>
       db.collection('dailyCalendarRecommendations').add({
         ...draft,
@@ -760,13 +821,11 @@ async function publishRecommendation(payload, admin, requestId) {
     )
   }
   await db.collection('dailyRecommendations').doc(payload.id).update({
-    data: {
-      status: 'published',
-      publishAt: db.serverDate(),
-      version: current.version + 1,
-      updatedAt: db.serverDate(),
-      updatedBy: admin.uid
-    }
+    status: 'published',
+    publishAt: db.serverDate(),
+    version: current.version + 1,
+    updatedAt: db.serverDate(),
+    updatedBy: admin.uid
   })
   await writeAudit(admin, 'publish', 'dailyRecommendations', payload.id, current.date, requestId)
   return { published: 1, version: current.version + 1 }
@@ -842,23 +901,19 @@ async function adjustPoints(payload, admin, requestId) {
       throw new ApiError('VALIDATION_ERROR', '扣减后积分不能小于0')
     }
     await transaction.collection('users').doc(userId).update({
-      data: {
-        points: command.inc(amount),
-        totalPoints: amount > 0 ? command.inc(amount) : command.inc(0)
-      }
+      points: command.inc(amount),
+      totalPoints: amount > 0 ? command.inc(amount) : command.inc(0)
     })
     const ledgerResult = await transaction.collection('pointLedger').add({
-      data: {
-        _openid: user._openid || '',
-        userId,
-        amount,
-        balanceAfter: (latest.points || 0) + amount,
-        type: 'admin_adjustment',
-        reason,
-        idempotencyKey,
-        operatorUid: admin.uid,
-        createdAt: db.serverDate()
-      }
+      _openid: user._openid || '',
+      userId,
+      amount,
+      balanceAfter: (latest.points || 0) + amount,
+      type: 'admin_adjustment',
+      reason,
+      idempotencyKey,
+      operatorUid: admin.uid,
+      createdAt: db.serverDate()
     })
     return { userId, amount, ledgerId: ledgerResult._id }
   })
@@ -911,11 +966,17 @@ async function saveConfigs(payload, admin, requestId) {
     const existing = await db.collection('appConfigs').where({ key }).limit(1).get()
     if (existing.data.length) {
       await db.collection('appConfigs').doc(existing.data[0]._id).update({
-        data: { value, updatedAt: db.serverDate(), updatedBy: admin.uid }
+        value,
+        updatedAt: db.serverDate(),
+        updatedBy: admin.uid
       })
     } else {
       await db.collection('appConfigs').add({
-        data: { key, value, createdAt: db.serverDate(), updatedAt: db.serverDate(), updatedBy: admin.uid }
+        key,
+        value,
+        createdAt: db.serverDate(),
+        updatedAt: db.serverDate(),
+        updatedBy: admin.uid
       })
     }
   }
@@ -1046,7 +1107,11 @@ exports.main = async (event = {}, context = {}) => {
     }
 
     if (action === 'calendarRecommendations.publicRange') {
-      return success(publicCalendarRange(event.payload || {}), requestId)
+      return success(await publicCalendarRange(event.payload || {}), requestId)
+    }
+
+    if (action === 'content.publicGet') {
+      return success(await publicContentGet(event.payload || {}), requestId)
     }
 
     const uid = resolveUid(event, context)

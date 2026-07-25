@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { Plus, Search } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import MediaField from '@/components/MediaField.vue'
@@ -15,6 +16,7 @@ type OutfitRow = Outfit & { coverPreviewUrl: string }
 const loading = ref(false)
 const saving = ref(false)
 const drawerVisible = ref(false)
+const outfitFormRef = ref<FormInstance>()
 const list = ref<OutfitRow[]>([])
 const total = ref(0)
 const query = reactive({ page: 1, pageSize: 20, keyword: '', status: '' })
@@ -38,6 +40,19 @@ const blankOutfit = (): Outfit => ({
   status: 'draft'
 })
 const form = reactive<Outfit>(blankOutfit())
+const required = (message: string) => ({ required: true, message, trigger: 'blur' })
+const requiredChange = (message: string) => ({ required: true, message, trigger: 'change' })
+const outfitRules: FormRules<Outfit> = {
+  coverUrl: [requiredChange('请上传封面图或填写 CloudBase 文件ID')],
+  title: [required('请填写穿搭名称')],
+  description: [required('请填写搭配说明')],
+  sceneCodes: [{ type: 'array', required: true, message: '请选择场景标签', trigger: 'change' }],
+  primaryColorCodes: [{ type: 'array', required: true, message: '请选择主色', trigger: 'change' }],
+  seasonCodes: [{ type: 'array', required: true, message: '请选择季节标签', trigger: 'change' }],
+  weatherCodes: [{ type: 'array', required: true, message: '请选择天气标签', trigger: 'change' }],
+  temperatureMin: [requiredChange('请填写最低温度')],
+  temperatureMax: [requiredChange('请填写最高温度')]
+}
 
 function toTagArray(value: unknown) {
   if (Array.isArray(value)) {
@@ -95,8 +110,19 @@ function openEdit(row: Outfit | any) {
 }
 
 async function save() {
-  if (!form.title || !form.description) {
-    ElMessage.warning('请填写名称和说明')
+  const formRef = outfitFormRef.value
+  if (!formRef) return
+  try {
+    await formRef.validate()
+  } catch {
+    return
+  }
+  if (
+    Number.isFinite(form.temperatureMin) &&
+    Number.isFinite(form.temperatureMax) &&
+    Number(form.temperatureMin) > Number(form.temperatureMax)
+  ) {
+    ElMessage.warning('最低温度不能高于最高温度')
     return
   }
   saving.value = true
@@ -113,9 +139,27 @@ async function save() {
 }
 
 async function setStatus(row: Outfit | any, status: Outfit['status']) {
+  if (status === 'published') {
+    const missing = [
+      !row.coverUrl && '封面图',
+      !row.title && '穿搭名称',
+      !row.description && '搭配说明',
+      !row.sceneCodes?.length && '场景标签',
+      !row.primaryColorCodes?.length && '主色',
+      !row.seasonCodes?.length && '季节标签',
+      !row.weatherCodes?.length && '天气标签',
+      !Number.isFinite(row.temperatureMin) && '最低温度',
+      !Number.isFinite(row.temperatureMax) && '最高温度'
+    ].filter(Boolean)
+    if (missing.length) {
+      ElMessage.warning(`发布穿搭还缺少：${missing.join('、')}`)
+      return
+    }
+  }
   await ElMessageBox.confirm(
     `确认将“${row.title}”设置为${status === 'published' ? '已发布' : '已下架'}？`,
-    '状态确认'
+    '状态确认',
+    { center: true }
   )
   try {
     await callAdminApi('outfits.setStatus', {
@@ -238,22 +282,22 @@ onMounted(async () => {
   </section>
 
   <el-drawer v-model="drawerVisible" :title="form._id ? '编辑穿搭' : '新增穿搭'" size="560px">
-    <el-form label-position="top">
-      <el-form-item label="封面图">
+    <el-form ref="outfitFormRef" :model="form" :rules="outfitRules" label-position="top">
+      <el-form-item label="封面图" prop="coverUrl">
         <MediaField v-model="form.coverUrl" folder="outfits" />
       </el-form-item>
-      <el-form-item label="穿搭名称">
+      <el-form-item label="穿搭名称" prop="title">
         <el-input v-model="form.title" maxlength="50" show-word-limit />
       </el-form-item>
-      <el-form-item label="搭配说明">
+      <el-form-item label="搭配说明" prop="description">
         <el-input v-model="form.description" type="textarea" :rows="4" maxlength="500" show-word-limit />
       </el-form-item>
-      <el-form-item label="场景标签">
+      <el-form-item label="场景标签" prop="sceneCodes">
         <el-select v-model="form.sceneCodes" multiple filterable style="width: 100%">
           <el-option v-for="item in options('scene')" :key="item.code" :label="item.name" :value="item.code" />
         </el-select>
       </el-form-item>
-      <el-form-item label="主色">
+      <el-form-item label="主色" prop="primaryColorCodes">
         <el-select v-model="form.primaryColorCodes" multiple filterable :multiple-limit="3" style="width: 100%">
           <el-option v-for="item in options('color')" :key="item.code" :label="item.name" :value="item.code" />
         </el-select>
@@ -271,21 +315,21 @@ onMounted(async () => {
           {{ item }}
         </el-tag>
       </el-form-item>
-      <el-form-item label="季节标签">
+      <el-form-item label="季节标签" prop="seasonCodes">
         <el-select v-model="form.seasonCodes" multiple style="width: 100%">
           <el-option v-for="item in options('season')" :key="item.code" :label="item.name" :value="item.code" />
         </el-select>
       </el-form-item>
-      <el-form-item label="天气标签">
+      <el-form-item label="天气标签" prop="weatherCodes">
         <el-select v-model="form.weatherCodes" multiple style="width: 100%">
           <el-option v-for="item in options('weather')" :key="item.code" :label="item.name" :value="item.code" />
         </el-select>
       </el-form-item>
       <div class="two-column">
-        <el-form-item label="最低温度">
+        <el-form-item label="最低温度" prop="temperatureMin">
           <el-input-number v-model="form.temperatureMin" :min="-30" :max="50" />
         </el-form-item>
-        <el-form-item label="最高温度">
+        <el-form-item label="最高温度" prop="temperatureMax">
           <el-input-number v-model="form.temperatureMax" :min="-30" :max="50" />
         </el-form-item>
       </div>

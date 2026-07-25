@@ -3,6 +3,7 @@
     "pages/splash/splash",
     "pages/index/index",
     "pages/login/login",
+    "pages/legal/legal",
     "pages/detail/detail",
     "pages/mine/mine"
   ],

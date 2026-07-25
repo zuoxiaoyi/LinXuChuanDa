@@ -17,6 +17,7 @@ const emit = defineEmits<{
 }>()
 
 const uploading = ref(false)
+const uploadPercent = ref(0)
 const previewUrl = ref('')
 let previewRequestId = 0
 
@@ -32,8 +33,14 @@ watch(
 
 async function upload(options: UploadRequestOptions) {
   uploading.value = true
+  uploadPercent.value = 0
   try {
-    const url = await uploadAdminImage(options.file, props.folder)
+    const url = await uploadAdminImage(options.file, props.folder, event => {
+      if (!event.lengthComputable) return
+      uploadPercent.value = Math.round((event.loaded / event.total) * 100)
+      options.onProgress({ percent: uploadPercent.value } as any)
+    })
+    uploadPercent.value = 100
     emit('update:modelValue', url)
     options.onSuccess({ url })
   } catch (error: any) {
@@ -59,6 +66,7 @@ async function upload(options: UploadRequestOptions) {
       >
         <el-button :icon="Upload" :loading="uploading">上传图片</el-button>
       </el-upload>
+      <el-progress v-if="uploading" :percentage="uploadPercent" :stroke-width="6" />
       <el-input
         :model-value="modelValue"
         placeholder="也可粘贴CloudBase文件ID"

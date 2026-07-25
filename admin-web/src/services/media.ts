@@ -9,11 +9,18 @@ function safeName(name: string) {
     .replace(/-+/g, '-')
 }
 
-export async function uploadAdminImage(file: File, folder: string) {
+export async function uploadAdminImage(
+  file: File,
+  folder: string,
+  onUploadProgress?: (event: ProgressEvent) => void
+) {
   if (!file.type.startsWith('image/')) throw new Error('只能上传图片')
   if (file.size > 3 * 1024 * 1024) throw new Error('图片不能超过3MB')
 
-  if (demoMode) return URL.createObjectURL(file)
+  if (demoMode) {
+    onUploadProgress?.({ lengthComputable: true, loaded: file.size, total: file.size } as ProgressEvent)
+    return URL.createObjectURL(file)
+  }
   if (!cloudbaseConfigured || !cloudApp) throw new Error('CloudBase尚未配置')
 
   const now = new Date()
@@ -21,7 +28,8 @@ export async function uploadAdminImage(file: File, folder: string) {
   const cloudPath = `admin/${folder}/${datePath}/${Date.now()}-${safeName(file.name)}`
   const result = await cloudApp.uploadFile({
     cloudPath,
-    filePath: file
+    filePath: file,
+    onUploadProgress
   })
   return result.fileID as string
 }

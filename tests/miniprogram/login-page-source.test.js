@@ -9,7 +9,8 @@ test('登录页使用原型背景、微信登录按钮和保留的返回入口',
   const wxml = fs.readFileSync(path.join(loginDir, 'login.wxml'), 'utf8')
 
   assert.match(wxml, /navigation-bar/)
-  assert.match(wxml, /\/images\/splash\/bg\.png/)
+  assert.match(wxml, /\/images\/common\/bg\.png/)
+  assert.match(wxml, /\/images\/common\/title\.png/)
   assert.match(wxml, /bindtap="onLogin"/)
   assert.match(wxml, /微信授权一键登录/)
   assert.match(wxml, /bindtap="onSkip"/)

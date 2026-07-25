@@ -34,3 +34,9 @@
   box-shadow: inset 0 0 12rpx rgba(255, 255, 255, .9),
     0 5rpx 14rpx rgba(146, 107, 48, .14);
 }
+
+.local-icon {
+  width: 34rpx;
+  height: 34rpx;
+  flex: none;
+}

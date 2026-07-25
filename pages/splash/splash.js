@@ -1,21 +1,27 @@
-/**
- * 开屏广告页
- * 功能：全屏背景图 + 5s倒计时自动跳转 + 点击跳过
- * 原型设计：古风人物背景 + 底部标题 + 右上跳过按钮
- * 图片暂用本地路径（云环境timeout问题修复后再切换云存储）
- */
 Page({
   data: {
-    countdown: 5,        // 倒计时秒数
-    canSkip: false,      // 是否可跳过（从第1秒起即可点击）
-    timer: null          // 定时器引用
+    countdown: 5,
+    canSkip: true,
+    skipStyle: 'top: 28rpx;',
+    timer: null
   },
 
   onLoad() {
+    this.setSkipPosition()
     this.startCountdown()
   },
 
-  /** 启动倒计时，每秒递减 */
+  setSkipPosition() {
+    try {
+      const rect = wx.getMenuButtonBoundingClientRect()
+      const windowWidth = wx.getWindowInfo?.().windowWidth || wx.getSystemInfoSync().windowWidth
+      const top = Math.ceil((rect.bottom + 8) * 750 / windowWidth)
+      this.setData({ skipStyle: `top: ${top}rpx;` })
+    } catch (error) {
+      this.setData({ skipStyle: 'top: 132rpx;' })
+    }
+  },
+
   startCountdown() {
     this.data.timer = setInterval(() => {
       const countdown = this.data.countdown - 1
@@ -23,23 +29,20 @@ Page({
         this.goToIndex()
         return
       }
-      this.setData({ countdown, canSkip: true })
+      this.setData({ countdown })
     }, 1000)
   },
 
-  /** 跳转首页 */
   goToIndex() {
     this.clearTimer()
     wx.redirectTo({ url: '/pages/index/index' })
   },
 
-  /** 点击跳过按钮 */
   onSkip() {
     if (!this.data.canSkip) return
     this.goToIndex()
   },
 
-  /** 清除定时器，防止内存泄漏 */
   clearTimer() {
     if (this.data.timer) {
       clearInterval(this.data.timer)

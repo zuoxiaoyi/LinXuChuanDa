@@ -14,8 +14,6 @@
   enable-back-to-top
 >
 <view class="detail-page">
-  <image class="paper-bg" src="/images/common/bg.jpg" mode="aspectFill" />
-
   <view class="detail-content">
     <view class="date-heading">
       <text>{{dateText}}</text>
@@ -27,72 +25,122 @@
     </view>
 
     <view class="state-container" wx:elif="{{error}}">
-      <van-icon name="warning-o" size="58rpx" color="#b08a4d" />
+      <image class="state-icon" src="/images/icons/warning.png" mode="aspectFit" />
       <text>{{error}}</text>
       <button class="retry-button" bindtap="onRetry">重新加载</button>
     </view>
 
     <view class="state-container" wx:elif="{{bestList.length === 0 && secondList.length === 0}}">
-      <van-icon name="photo-o" size="60rpx" color="#c8b999" />
+      <image class="state-icon" src="/images/icons/image.png" mode="aspectFit" />
       <text>当天还没有配置穿搭方案</text>
     </view>
 
     <block wx:else>
       <view class="recommend-group">
-        <view class="group-title">
-          <text class="rank-name">最佳</text>
-          <text class="rank-description">优先推荐的场景搭配</text>
-        </view>
-        <view class="outfit-grid">
-          <view class="outfit-card" wx:for="{{bestList}}" wx:key="_id">
-            <image
-              class="outfit-image"
-              wx:if="{{item.coverUrl}}"
-              src="{{item.coverUrl}}"
-              mode="aspectFill"
-              lazy-load
-            />
-            <view class="image-placeholder" wx:else>
-              <van-icon name="photo-o" size="48rpx" color="#c9bfae" />
+        <view class="recommend-row">
+          <view class="group-title">
+            <text class="rank-name">最佳:</text>
+            <view class="rank-description">
+              <text class="rank-description-line">优先推荐的</text>
+              <text class="rank-description-line">场景搭配</text>
             </view>
-            <text class="scene-name">{{item.sceneName}}</text>
-            <text class="outfit-title">{{item.title}}</text>
-            <view
-              class="collect-button {{item.isCollected ? 'is-collected' : ''}}"
-              data-id="{{item._id}}"
-              catchtap="onToggleCollect"
-            >
-              <van-icon name="{{item.isCollected ? 'star' : 'star-o'}}" size="30rpx" />
+            <view class="color-chip-row">
+              <view
+                class="color-chip"
+                wx:for="{{bestColorBadges}}"
+                wx:key="name"
+              >
+                <text
+                  class="color-chip-dot"
+                  style="background-color: {{item.bgColor}}; border-color: {{item.borderColor}};"
+                ></text>
+                <text class="color-chip-name">{{item.name}}</text>
+              </view>
+            </view>
+          </view>
+          <view class="outfit-grid">
+            <view class="outfit-card" wx:for="{{bestColumns}}" wx:key="sceneName">
+              <text class="scene-name" wx:if="{{item.showSceneName}}">{{item.sceneName}}</text>
+              <image
+                class="outfit-image"
+                wx:if="{{item.item && item.item.coverUrl}}"
+                src="{{item.item.coverUrl}}"
+                mode="aspectFit"
+                lazy-load
+                data-url="{{item.item.coverUrl}}"
+                bindtap="onPreviewImage"
+              />
+              <view class="image-placeholder empty-outfit" wx:else>
+                <image class="image-placeholder-icon" src="/images/icons/image.png" mode="aspectFit" />
+                <text>未创建</text>
+              </view>
+              <view
+                wx:if="{{item.item}}"
+                class="collect-button {{item.item.isCollected ? 'is-collected' : ''}}"
+                data-id="{{item.item._id}}"
+                catchtap="onToggleCollect"
+              >
+                <image
+                  class="collect-icon"
+                  src="{{item.item.isCollected ? '/images/icons/star.png' : '/images/icons/star-outline.png'}}"
+                  mode="aspectFit"
+                />
+              </view>
             </view>
           </view>
         </view>
       </view>
 
       <view class="recommend-group second-group">
-        <view class="group-title">
-          <text class="rank-name">次佳</text>
-          <text class="rank-description">同样适合的备选搭配</text>
-        </view>
-        <view class="outfit-grid">
-          <view class="outfit-card" wx:for="{{secondList}}" wx:key="_id">
-            <image
-              class="outfit-image"
-              wx:if="{{item.coverUrl}}"
-              src="{{item.coverUrl}}"
-              mode="aspectFill"
-              lazy-load
-            />
-            <view class="image-placeholder" wx:else>
-              <van-icon name="photo-o" size="48rpx" color="#c9bfae" />
+        <view class="recommend-row">
+          <view class="group-title">
+            <text class="rank-name">次佳:</text>
+            <view class="rank-description">
+              <text class="rank-description-line">同样适合的</text>
+              <text class="rank-description-line">备选搭配</text>
             </view>
-            <text class="scene-name">{{item.sceneName}}</text>
-            <text class="outfit-title">{{item.title}}</text>
-            <view
-              class="collect-button {{item.isCollected ? 'is-collected' : ''}}"
-              data-id="{{item._id}}"
-              catchtap="onToggleCollect"
-            >
-              <van-icon name="{{item.isCollected ? 'star' : 'star-o'}}" size="30rpx" />
+            <view class="color-chip-row">
+              <view
+                class="color-chip"
+                wx:for="{{secondColorBadges}}"
+                wx:key="name"
+              >
+                <text
+                  class="color-chip-dot"
+                  style="background-color: {{item.bgColor}}; border-color: {{item.borderColor}};"
+                ></text>
+                <text class="color-chip-name">{{item.name}}</text>
+              </view>
+            </view>
+          </view>
+          <view class="outfit-grid">
+            <view class="outfit-card" wx:for="{{secondColumns}}" wx:key="sceneName">
+              <text class="scene-name" wx:if="{{item.showSceneName}}">{{item.sceneName}}</text>
+              <image
+                class="outfit-image"
+                wx:if="{{item.item && item.item.coverUrl}}"
+                src="{{item.item.coverUrl}}"
+                mode="aspectFit"
+                lazy-load
+                data-url="{{item.item.coverUrl}}"
+                bindtap="onPreviewImage"
+              />
+              <view class="image-placeholder empty-outfit" wx:else>
+                <image class="image-placeholder-icon" src="/images/icons/image.png" mode="aspectFit" />
+                <text>未创建</text>
+              </view>
+              <view
+                wx:if="{{item.item}}"
+                class="collect-button {{item.item.isCollected ? 'is-collected' : ''}}"
+                data-id="{{item.item._id}}"
+                catchtap="onToggleCollect"
+              >
+                <image
+                  class="collect-icon"
+                  src="{{item.item.isCollected ? '/images/icons/star.png' : '/images/icons/star-outline.png'}}"
+                  mode="aspectFit"
+                />
+              </view>
             </view>
           </view>
         </view>
@@ -101,8 +149,15 @@
       <view class="accessory-section">
         <text class="accessory-heading">幸运配饰</text>
         <view class="accessory-list">
-          <view class="accessory-item" wx:for="{{accessories}}" wx:key="id">
-            <text class="accessory-symbol">{{item.symbol}}</text>
+          <view class="accessory-item" wx:for="{{accessories}}" wx:key="_id">
+            <image
+              wx:if="{{item.imageUrl}}"
+              class="accessory-image"
+              src="{{item.imageUrl}}"
+              mode="aspectFill"
+              lazy-load
+            />
+            <text class="accessory-symbol" wx:else>✦</text>
             <text class="accessory-name">{{item.name}}</text>
             <text class="accessory-description">{{item.description}}</text>
           </view>

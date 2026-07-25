@@ -15,7 +15,7 @@ const outfits: Outfit[] = [
     description: '轻盈米白与淡金细节，适合日常通勤。',
     coverUrl: '',
     primaryColorCodes: ['white'],
-    accentColorCodes: ['metallic'],
+    accentColorCodes: ['gray'],
     elementCodes: ['metal'],
     sceneCodes: ['commute'],
     seasonCodes: ['spring', 'autumn'],
@@ -96,9 +96,9 @@ const calendarRecommendations: CalendarRecommendation[] = [
       dayElement: '土'
     },
     colorAdvice: {
-      primary: { element: '金', colors: ['白', '银', '浅灰', '金属色'] },
-      secondary: { element: '土', colors: ['黄', '棕', '咖', '驼', '杏', '褐'] },
-      avoid: { element: '水', colors: ['黑', '蓝', '深灰'] }
+      primary: { element: '金', colors: ['白', '银', '灰'] },
+      secondary: { element: '土', colors: ['黄', '棕', '咖'] },
+      avoid: { element: '水', colors: ['黑', '蓝'] }
     },
     ruleVersion: '2026.1',
     generationMode: 'algorithm',

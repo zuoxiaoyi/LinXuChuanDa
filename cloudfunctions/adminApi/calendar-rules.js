@@ -17,10 +17,10 @@ const BRANCH_ELEMENT = Object.freeze({
 
 const ELEMENT_COLORS = Object.freeze({
   木: ['绿', '青'],
-  火: ['红', '粉', '紫', '橙'],
-  土: ['黄', '棕', '咖', '驼', '杏', '褐'],
-  金: ['白', '银', '浅灰', '金属色'],
-  水: ['黑', '蓝', '深灰']
+  火: ['红', '紫', '橙'],
+  土: ['黄', '棕', '咖'],
+  金: ['白', '银', '灰'],
+  水: ['黑', '蓝']
 })
 
 const GENERATES = Object.freeze({
@@ -79,7 +79,7 @@ function buildCalendar(date) {
   }
 }
 
-function buildColorAdvice(dayElement) {
+function buildColorAdvice(dayElement, elementColors = ELEMENT_COLORS) {
   if (!ELEMENT_COLORS[dayElement]) throw new Error(`不支持的五行：${dayElement}`)
 
   const primaryElement = GENERATES[dayElement]
@@ -87,26 +87,26 @@ function buildColorAdvice(dayElement) {
   return {
     primary: {
       element: primaryElement,
-      colors: [...ELEMENT_COLORS[primaryElement]]
+      colors: [...(elementColors[primaryElement] || ELEMENT_COLORS[primaryElement])]
     },
     secondary: {
       element: dayElement,
-      colors: [...ELEMENT_COLORS[dayElement]]
+      colors: [...(elementColors[dayElement] || ELEMENT_COLORS[dayElement])]
     },
     avoid: {
       element: avoidElement,
-      colors: [...ELEMENT_COLORS[avoidElement]]
+      colors: [...(elementColors[avoidElement] || ELEMENT_COLORS[avoidElement])]
     }
   }
 }
 
-function buildCalendarRecommendation(date, ruleVersion) {
+function buildCalendarRecommendation(date, ruleVersion, elementColors) {
   if (!String(ruleVersion || '').trim()) throw new Error('规则版本不能为空')
   const calendar = buildCalendar(date)
   return {
     date,
     calendar,
-    colorAdvice: buildColorAdvice(calendar.dayElement),
+    colorAdvice: buildColorAdvice(calendar.dayElement, elementColors),
     ruleVersion: String(ruleVersion).trim(),
     generationMode: 'algorithm',
     manualOverride: false,

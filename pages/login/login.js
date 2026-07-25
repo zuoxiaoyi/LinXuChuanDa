@@ -78,6 +78,12 @@ Page({
     wx.reLaunch({ url: '/pages/index/index' })
   },
 
+  onOpenLegal(event) {
+    const type = event.currentTarget.dataset.type
+    if (!type) return
+    wx.navigateTo({ url: `/pages/legal/legal?type=${type}` })
+  },
+
   completeLoginNavigation() {
     if (this.data.redirectUrl) {
       wx.redirectTo({

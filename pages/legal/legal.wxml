@@ -1,0 +1,17 @@
+<navigation-bar
+  title="{{title}}"
+  back="{{true}}"
+  color="#4c3b25"
+  background="rgba(255, 253, 247, .96)"
+></navigation-bar>
+
+<scroll-view class="page-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+  <view class="legal-page">
+    <image class="paper-bg" src="/images/common/bg.png" mode="aspectFill"></image>
+
+    <view class="legal-card">
+      <text class="legal-title">{{title}}</text>
+      <rich-text class="legal-content" nodes="{{htmlContent}}"></rich-text>
+    </view>
+  </view>
+</scroll-view>

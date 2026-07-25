@@ -75,6 +75,16 @@ page {
   background: #f5ead5;
 }
 
+.avatar-icon {
+  width: 48rpx;
+  height: 48rpx;
+}
+
+.arrow-icon {
+  width: 30rpx;
+  height: 30rpx;
+}
+
 .login-copy,
 .user-copy {
   flex: 1;
@@ -200,6 +210,11 @@ page {
   font-size: 24rpx;
 }
 
+.state-icon {
+  width: 54rpx;
+  height: 54rpx;
+}
+
 .retry-button,
 .login-button {
   margin: 4rpx 0 0;
@@ -238,14 +253,21 @@ page {
   font-size: 23rpx;
 }
 
+.empty-icon {
+  width: 68rpx;
+  height: 68rpx;
+}
+
 .collection-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 18rpx;
   margin-top: 22rpx;
 }
 
 .collection-item {
+  width: calc((100% - 18rpx) / 2);
+  box-sizing: border-box;
   overflow: hidden;
   border-radius: 16rpx;
   background: #fff;

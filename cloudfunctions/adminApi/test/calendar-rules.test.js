@@ -28,16 +28,28 @@ test('甲戌日按土生金、土同土、土克水生成三档颜色', () => {
   assert.equal(calendar.dayBranch, '戌')
   assert.deepEqual(advice.primary, {
     element: '金',
-    colors: ['白', '银', '浅灰', '金属色']
+    colors: ['白', '银', '灰']
   })
   assert.deepEqual(advice.secondary, {
     element: '土',
-    colors: ['黄', '棕', '咖', '驼', '杏', '褐']
+    colors: ['黄', '棕', '咖']
   })
   assert.deepEqual(advice.avoid, {
     element: '水',
-    colors: ['黑', '蓝', '深灰']
+    colors: ['黑', '蓝']
   })
+})
+
+test('可用字典色覆盖默认算法色，停用色不会进入生成结果', () => {
+  const advice = buildColorAdvice('土', {
+    金: ['白', '银'],
+    土: ['黄'],
+    水: ['黑']
+  })
+
+  assert.deepEqual(advice.primary.colors, ['白', '银'])
+  assert.deepEqual(advice.secondary.colors, ['黄'])
+  assert.deepEqual(advice.avoid.colors, ['黑'])
 })
 
 test('基础结果包含规则版本且只生成日历与颜色', () => {

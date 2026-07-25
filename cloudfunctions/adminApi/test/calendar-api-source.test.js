@@ -49,3 +49,11 @@ test('日历建议按 Node SDK 约定直接写入文档字段', () => {
     /db\.collection\('dailyCalendarRecommendations'\)\.add\(\{\s*data:/
   )
 })
+
+test('批量生成日历颜色使用启用字典色并刷新旧算法记录', () => {
+  assert.match(source, /async function enabledColorNamesByElement/)
+  assert.match(source, /buildCalendarRecommendation\(date,\s*ruleVersion,\s*elementColors\)/)
+  assert.match(source, /existingDoc\.generationMode === 'algorithm'/)
+  assert.match(source, /manualOverride !== true/)
+  assert.match(source, /db\.collection\('dailyCalendarRecommendations'\)\.doc\(existingDoc\._id\)\.update/)
+})

@@ -4,7 +4,7 @@
     data-page="home"
     bindtap="onNavigate"
   >
-    <van-icon name="wap-home-o" size="42rpx" />
+    <image class="local-icon" src="/images/icons/tab-home.png" mode="aspectFit" />
     <text>首页</text>
   </view>
   <view
@@ -12,7 +12,7 @@
     data-page="mine"
     bindtap="onNavigate"
   >
-    <van-icon name="user-o" size="42rpx" />
+    <image class="local-icon" src="/images/icons/tab-mine.png" mode="aspectFit" />
     <text>我的</text>
   </view>
 </view>

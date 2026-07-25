@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { Plus, Refresh } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { callAdminApi } from '@/services/admin-api'
@@ -20,6 +21,7 @@ const list = ref<TagDictionary[]>([])
 const loading = ref(false)
 const saving = ref(false)
 const drawerVisible = ref(false)
+const dictionaryFormRef = ref<FormInstance>()
 const activeType = ref<DictionaryType>('color')
 const blank = (): TagDictionary => ({
   type: activeType.value,
@@ -32,6 +34,13 @@ const blank = (): TagDictionary => ({
   systemLocked: false
 })
 const form = reactive<TagDictionary>(blank())
+const dictionaryRules: FormRules<TagDictionary> = {
+  type: [{ required: true, message: '请选择类型', trigger: 'change' }],
+  code: [{ required: true, message: '请填写编码', trigger: 'blur' }],
+  name: [{ required: true, message: '请填写名称', trigger: 'blur' }],
+  colorHex: [{ required: true, message: '请选择色值', trigger: 'change' }],
+  elementCode: [{ required: true, message: '请选择五行归属', trigger: 'change' }]
+}
 const filtered = computed(() => list.value
   .filter(item => item.type === activeType.value)
   .sort((a, b) => a.order - b.order))
@@ -58,8 +67,11 @@ function edit(row?: TagDictionary | any) {
 }
 
 async function save() {
-  if (!form.code || !form.name) {
-    ElMessage.warning('请填写名称和编码')
+  const formRef = dictionaryFormRef.value
+  if (!formRef) return
+  try {
+    await formRef.validate()
+  } catch {
     return
   }
   saving.value = true
@@ -157,23 +169,23 @@ onMounted(load)
   </section>
 
   <el-drawer v-model="drawerVisible" :title="form._id ? '编辑字典项' : '新增字典项'" size="480px">
-    <el-form label-position="top">
-      <el-form-item label="类型">
+    <el-form ref="dictionaryFormRef" :model="form" :rules="dictionaryRules" label-position="top">
+      <el-form-item label="类型" prop="type">
         <el-select v-model="form.type" :disabled="Boolean(form._id)" style="width: 100%">
           <el-option v-for="[value, label] in types" :key="value" :label="label" :value="value" />
         </el-select>
       </el-form-item>
-      <el-form-item label="编码">
+      <el-form-item label="编码" prop="code">
         <el-input v-model="form.code" :disabled="Boolean(form._id)" maxlength="40" />
       </el-form-item>
-      <el-form-item label="名称">
+      <el-form-item label="名称" prop="name">
         <el-input v-model="form.name" maxlength="40" />
       </el-form-item>
       <template v-if="form.type === 'color'">
-        <el-form-item label="色值">
+        <el-form-item label="色值" prop="colorHex">
           <el-color-picker v-model="form.colorHex" />
         </el-form-item>
-        <el-form-item label="五行归属">
+        <el-form-item label="五行归属" prop="elementCode">
           <el-select v-model="form.elementCode" style="width: 100%">
             <el-option v-for="item in elements" :key="item.code" :label="item.name" :value="item.code" />
           </el-select>

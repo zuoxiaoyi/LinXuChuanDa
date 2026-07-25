@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { MagicStick, Refresh } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { callAdminApi } from '@/services/admin-api'
@@ -12,8 +13,15 @@ const generating = ref(false)
 const list = ref<CalendarRecommendation[]>([])
 const total = ref(0)
 const generateVisible = ref(false)
-const generateRange = ref<[string, string] | null>(null)
-const ruleVersion = ref('2026.1')
+const generateFormRef = ref<FormInstance>()
+const generateForm = reactive<{ range: [string, string] | null; ruleVersion: string }>({
+  range: null,
+  ruleVersion: '2026.1'
+})
+const generateRules: FormRules<typeof generateForm> = {
+  range: [{ required: true, message: '请选择生成日期范围', trigger: 'change' }],
+  ruleVersion: [{ required: true, message: '请填写规则版本', trigger: 'blur' }]
+}
 const query = reactive({ page: 1, pageSize: 20 })
 
 async function load() {
@@ -33,8 +41,11 @@ async function load() {
 }
 
 async function generate() {
-  if (!generateRange.value) {
-    ElMessage.warning('请选择生成日期范围')
+  const formRef = generateFormRef.value
+  if (!formRef) return
+  try {
+    await formRef.validate()
+  } catch {
     return
   }
   generating.value = true
@@ -42,9 +53,9 @@ async function generate() {
     const result = await callAdminApi<{ generated: number; skipped: number }>(
       'calendarRecommendations.generate',
       {
-        startDate: generateRange.value[0],
-        endDate: generateRange.value[1],
-        ruleVersion: ruleVersion.value
+        startDate: generateForm.range![0],
+        endDate: generateForm.range![1],
+        ruleVersion: generateForm.ruleVersion
       }
     )
     ElMessage.success(`生成${result.generated}天，跳过${result.skipped}天`)
@@ -121,10 +132,10 @@ onMounted(load)
   </section>
 
   <el-dialog v-model="generateVisible" title="生成日历与颜色" width="480px">
-    <el-form label-position="top">
-      <el-form-item label="日期范围">
+    <el-form ref="generateFormRef" :model="generateForm" :rules="generateRules" label-position="top">
+      <el-form-item label="日期范围" prop="range">
         <el-date-picker
-          v-model="generateRange"
+          v-model="generateForm.range"
           type="daterange"
           value-format="YYYY-MM-DD"
           start-placeholder="开始日期"
@@ -132,8 +143,8 @@ onMounted(load)
           style="width: 100%"
         />
       </el-form-item>
-      <el-form-item label="规则版本">
-        <el-input v-model="ruleVersion" />
+      <el-form-item label="规则版本" prop="ruleVersion">
+        <el-input v-model="generateForm.ruleVersion" />
       </el-form-item>
     </el-form>
     <template #footer>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { Plus, Search } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import MediaField from '@/components/MediaField.vue'
@@ -15,6 +16,7 @@ type AccessoryRow = Accessory & { imagePreviewUrl: string }
 const loading = ref(false)
 const saving = ref(false)
 const drawerVisible = ref(false)
+const accessoryFormRef = ref<FormInstance>()
 const list = ref<AccessoryRow[]>([])
 const total = ref(0)
 const query = reactive({ page: 1, pageSize: 20, keyword: '', status: '' })
@@ -32,6 +34,15 @@ const blankAccessory = (): Accessory => ({
   status: 'draft'
 })
 const form = reactive<Accessory>(blankAccessory())
+const required = (message: string) => ({ required: true, message, trigger: 'blur' })
+const accessoryRules: FormRules<Accessory> = {
+  imageUrl: [{ required: true, message: '请上传配饰图片或填写 CloudBase 文件ID', trigger: 'change' }],
+  name: [required('请填写名称')],
+  description: [required('请填写说明')],
+  primaryColorCodes: [{ type: 'array', required: true, message: '请选择主色', trigger: 'change' }],
+  sceneCodes: [{ type: 'array', required: true, message: '请选择场景标签', trigger: 'change' }],
+  accessoryTypeCode: [{ required: true, message: '请选择配饰类型', trigger: 'change' }]
+}
 
 function toTagArray(value: unknown) {
   if (Array.isArray(value)) {
@@ -78,8 +89,11 @@ function edit(row?: Accessory | any) {
 }
 
 async function save() {
-  if (!form.name || !form.description) {
-    ElMessage.warning('请填写名称和说明')
+  const formRef = accessoryFormRef.value
+  if (!formRef) return
+  try {
+    await formRef.validate()
+  } catch {
     return
   }
   saving.value = true
@@ -199,15 +213,15 @@ onMounted(async () => {
   </section>
 
   <el-drawer v-model="drawerVisible" :title="form._id ? '编辑配饰' : '新增配饰'" size="520px">
-    <el-form label-position="top">
-      <el-form-item label="配饰图片">
+    <el-form ref="accessoryFormRef" :model="form" :rules="accessoryRules" label-position="top">
+      <el-form-item label="配饰图片" prop="imageUrl">
         <MediaField v-model="form.imageUrl" folder="accessories" />
       </el-form-item>
-      <el-form-item label="名称"><el-input v-model="form.name" maxlength="40" /></el-form-item>
-      <el-form-item label="说明">
+      <el-form-item label="名称" prop="name"><el-input v-model="form.name" maxlength="40" /></el-form-item>
+      <el-form-item label="说明" prop="description">
         <el-input v-model="form.description" type="textarea" :rows="3" maxlength="160" show-word-limit />
       </el-form-item>
-      <el-form-item label="主色">
+      <el-form-item label="主色" prop="primaryColorCodes">
         <el-select v-model="form.primaryColorCodes" multiple filterable :multiple-limit="3" style="width: 100%">
           <el-option v-for="item in options('color')" :key="item.code" :label="item.name" :value="item.code" />
         </el-select>
@@ -217,12 +231,12 @@ onMounted(async () => {
           {{ item }}
         </el-tag>
       </el-form-item>
-      <el-form-item label="场景标签">
+      <el-form-item label="场景标签" prop="sceneCodes">
         <el-select v-model="form.sceneCodes" multiple filterable style="width: 100%">
           <el-option v-for="item in options('scene')" :key="item.code" :label="item.name" :value="item.code" />
         </el-select>
       </el-form-item>
-      <el-form-item label="配饰类型">
+      <el-form-item label="配饰类型" prop="accessoryTypeCode">
         <el-select v-model="form.accessoryTypeCode" filterable style="width: 100%">
           <el-option v-for="item in options('accessoryType')" :key="item.code" :label="item.name" :value="item.code" />
         </el-select>

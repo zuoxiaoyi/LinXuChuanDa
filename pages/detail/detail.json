@@ -2,7 +2,6 @@
   "usingComponents": {
     "navigation-bar": "/components/navigation-bar/navigation-bar",
     "bottom-nav": "/components/bottom-nav/bottom-nav",
-    "van-icon": "@vant/weapp/icon/index",
     "van-loading": "@vant/weapp/loading/index"
   },
   "navigationStyle": "custom"

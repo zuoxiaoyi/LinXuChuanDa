@@ -1,46 +1,113 @@
-/**
- * 云函数 - unlockOutfit
- * 功能：使用积分解锁穿搭内容
- */
 const cloud = require('wx-server-sdk')
+
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
 const db = cloud.database()
+const _ = db.command
 
-// 解锁所需积分
-const UNLOCK_COST = 10
+function validDate(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))
+}
 
-exports.main = async (event, context) => {
-  const { OPENID } = cloud.getWXContext()
-  const { outfitId } = event
+function addDays(dateKey, days) {
+  const [year, month, day] = dateKey.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day + days))
+  return [
+    date.getUTCFullYear(),
+    String(date.getUTCMonth() + 1).padStart(2, '0'),
+    String(date.getUTCDate()).padStart(2, '0')
+  ].join('-')
+}
 
-  try {
-    // 查询用户当前积分
-    const userRes = await db.collection('users').where({
-      _openid: OPENID
-    }).get()
+function weekLockedDates(windowStart) {
+  return [3, 4, 5, 6].map(offset => addDays(windowStart, offset))
+}
 
-    if (userRes.data.length === 0) {
-      return { success: false, msg: '请先登录' }
+async function ensureUser(openid) {
+  const userRes = await db.collection('users').where({ _openid: openid }).limit(1).get()
+  return userRes.data[0] || null
+}
+
+async function getWeekStatus(openid, event) {
+  const windowStart = event.windowStart
+  if (!validDate(windowStart)) return { success: false, msg: '日期参数错误' }
+  const dates = weekLockedDates(windowStart)
+  const result = await db.collection('unlocks').where({
+    _openid: openid,
+    targetType: 'date',
+    targetKey: _.in(dates)
+  }).get()
+
+  return {
+    success: true,
+    unlockedDates: result.data.map(item => item.targetKey)
+  }
+}
+
+async function addUnlock(openid, date, method, windowStart, adEventId) {
+  const existing = await db.collection('unlocks').where({
+    _openid: openid,
+    targetType: 'date',
+    targetKey: date
+  }).limit(1).get()
+  if (existing.data.length) return false
+
+  await db.collection('unlocks').add({
+    data: {
+      _openid: openid,
+      targetType: 'date',
+      targetKey: date,
+      method,
+      windowStart,
+      adEventId: adEventId || '',
+      createTime: db.serverDate()
     }
+  })
+  return true
+}
 
-    const user = userRes.data[0]
-    if ((user.points || 0) < UNLOCK_COST) {
-      return { success: false, msg: '积分不足' }
-    }
+async function adUnlockWeek(openid, event) {
+  const user = await ensureUser(openid)
+  if (!user) return { success: false, msg: '请先登录' }
 
-    // 扣除积分
-    await db.collection('users').where({ _openid: OPENID }).update({
+  const windowStart = event.windowStart
+  if (!validDate(windowStart)) return { success: false, msg: '日期参数错误' }
+
+  const adEventId = String(event.adEventId || `${openid}-${Date.now()}`)
+  const eventRes = await db.collection('adRewardEvents').where({
+    _openid: openid,
+    eventId: adEventId
+  }).limit(1).get()
+  if (!eventRes.data.length) {
+    await db.collection('adRewardEvents').add({
       data: {
-        points: db.command.inc(-UNLOCK_COST)
+        _openid: openid,
+        eventId: adEventId,
+        type: 'unlock_week',
+        windowStart,
+        createTime: db.serverDate()
       }
     })
+  }
 
-    return {
-      success: true,
-      remainPoints: (user.points || 0) - UNLOCK_COST,
-      costPoints: UNLOCK_COST
-    }
+  let created = 0
+  for (const date of weekLockedDates(windowStart)) {
+    if (await addUnlock(openid, date, 'ad', windowStart, adEventId)) created += 1
+  }
+
+  return {
+    success: true,
+    created,
+    unlockedDates: weekLockedDates(windowStart)
+  }
+}
+
+exports.main = async (event = {}) => {
+  const { OPENID } = cloud.getWXContext()
+  try {
+    if (event.action === 'getWeekStatus') return getWeekStatus(OPENID, event)
+    if (event.action === 'adUnlockWeek') return adUnlockWeek(OPENID, event)
+    return { success: false, msg: '未知操作' }
   } catch (err) {
     console.error('解锁失败:', err)
     return { success: false, msg: '解锁失败' }

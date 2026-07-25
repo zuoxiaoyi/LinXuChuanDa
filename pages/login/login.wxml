@@ -8,13 +8,13 @@
 <view class="login-page">
   <image
     class="login-background"
-    src="/images/splash/bg.png"
+    src="/images/common/bg.png"
     mode="aspectFill"
   ></image>
   <view class="login-mask"></view>
 
   <view class="brand-copy">
-    <text class="brand-title">灵序穿搭</text>
+    <image class="login-title-image" src="/images/common/title.png" mode="widthFix" />
     <text class="brand-subtitle">穿出你的好运势</text>
   </view>
 
@@ -37,8 +37,12 @@
     <button class="skip-login-button" bindtap="onSkip">
       暂不登录，返回首页
     </button>
-    <text class="agreement-text">
-      登录即表示同意《用户协议》和《隐私政策》
-    </text>
+
+    <view class="agreement-text">
+      <text>登录即表示同意</text>
+      <text class="agreement-link" data-type="user_agreement" catchtap="onOpenLegal">《用户协议》</text>
+      <text>和</text>
+      <text class="agreement-link" data-type="privacy" catchtap="onOpenLegal">《隐私政策》</text>
+    </view>
   </view>
 </view>

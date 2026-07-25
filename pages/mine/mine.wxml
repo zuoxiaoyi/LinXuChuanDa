@@ -14,19 +14,19 @@
   enable-back-to-top
 >
 <view class="mine-container">
-  <image class="paper-bg" src="/images/common/bg.jpg" mode="aspectFill" />
+  <image class="paper-bg" src="/images/common/bg.png" mode="aspectFill" />
 
   <view class="mine-content">
     <view class="profile-card">
       <view class="header-login-hint" wx:if="{{!isLogin}}" bindtap="onGoLogin">
         <view class="avatar-placeholder">
-          <van-icon name="user-o" size="48rpx" color="#9b743a" />
+          <image class="avatar-icon" src="/images/icons/user.png" mode="aspectFit" />
         </view>
         <view class="login-copy">
           <text class="login-title">点击登录</text>
           <text class="login-subtitle">登录后同步积分与收藏</text>
         </view>
-        <van-icon name="arrow" size="30rpx" color="#b7a98e" />
+        <image class="arrow-icon" src="/images/icons/arrow-right.png" mode="aspectFit" />
       </view>
 
       <view class="header-user" wx:else>
@@ -79,7 +79,7 @@
     </view>
 
     <view class="state-card" wx:elif="{{error}}">
-      <van-icon name="warning-o" size="54rpx" color="#b08a4d" />
+      <image class="state-icon" src="/images/icons/warning.png" mode="aspectFit" />
       <text>{{error}}</text>
       <button class="retry-button" bindtap="onRetry">重新加载</button>
     </view>
@@ -91,13 +91,13 @@
       </view>
 
       <view class="empty-tip" wx:if="{{!isLogin}}">
-        <van-icon name="like-o" size="68rpx" color="#d2c6ad" />
+        <image class="empty-icon" src="/images/icons/heart.png" mode="aspectFit" />
         <text>登录后查看收藏的单套穿搭</text>
         <button class="login-button" bindtap="onGoLogin">去登录</button>
       </view>
 
       <view class="empty-tip" wx:elif="{{collectedList.length === 0}}">
-        <van-icon name="like-o" size="68rpx" color="#d2c6ad" />
+        <image class="empty-icon" src="/images/icons/heart.png" mode="aspectFit" />
         <text>暂无收藏，去首页发现喜欢的穿搭吧</text>
       </view>
 

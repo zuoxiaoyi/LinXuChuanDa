@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { EditPen } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { callAdminApi } from '@/services/admin-api'
@@ -10,6 +11,7 @@ import type { ContentConfig } from '@/types/domain'
 const loading = ref(false)
 const saving = ref(false)
 const drawerVisible = ref(false)
+const contentFormRef = ref<FormInstance>()
 const list = ref<ContentConfig[]>([])
 const form = reactive<ContentConfig>({
   key: 'about',
@@ -18,12 +20,27 @@ const form = reactive<ContentConfig>({
   locale: 'zh-CN',
   status: 'draft'
 })
+const contentRules: FormRules<ContentConfig> = {
+  key: [{ required: true, message: '请选择内容类型', trigger: 'change' }],
+  title: [{ required: true, message: '请填写标题', trigger: 'blur' }],
+  content: [{ required: true, message: '请填写正文', trigger: 'blur' }]
+}
 
 const keyLabels: Record<ContentConfig['key'], string> = {
   about: '灵序穿搭简介',
   user_agreement: '用户协议',
   privacy: '隐私政策',
   share_copy: '分享文案'
+}
+
+function normalizeContent(row: ContentConfig | any): ContentConfig {
+  const data = row?.data && typeof row.data === 'object' ? row.data : {}
+  return {
+    ...row,
+    ...data,
+    _id: row?._id || data._id,
+    version: data.version || row?.version
+  }
 }
 
 async function load() {
@@ -33,7 +50,7 @@ async function load() {
       page: 1,
       pageSize: 20
     })
-    list.value = result.list
+    list.value = result.list.map(normalizeContent)
   } catch (error: any) {
     ElMessage.error(error?.message || '内容配置加载失败')
   } finally {
@@ -54,8 +71,11 @@ function edit(row?: ContentConfig) {
 }
 
 async function save(publish = false) {
-  if (!form.title || !form.content) {
-    ElMessage.warning('标题和内容不能为空')
+  const formRef = contentFormRef.value
+  if (!formRef) return
+  try {
+    await formRef.validate()
+  } catch {
     return
   }
   saving.value = true
@@ -108,14 +128,14 @@ onMounted(load)
   </section>
 
   <el-drawer v-model="drawerVisible" title="编辑内容" size="600px">
-    <el-form label-position="top">
-      <el-form-item label="内容类型">
+    <el-form ref="contentFormRef" :model="form" :rules="contentRules" label-position="top">
+      <el-form-item label="内容类型" prop="key">
         <el-select v-model="form.key" style="width: 100%">
           <el-option v-for="(label, key) in keyLabels" :key="key" :label="label" :value="key" />
         </el-select>
       </el-form-item>
-      <el-form-item label="标题"><el-input v-model="form.title" maxlength="80" /></el-form-item>
-      <el-form-item label="正文">
+      <el-form-item label="标题" prop="title"><el-input v-model="form.title" maxlength="80" /></el-form-item>
+      <el-form-item label="正文" prop="content">
         <el-input v-model="form.content" type="textarea" :rows="16" maxlength="10000" show-word-limit />
       </el-form-item>
       <el-alert

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { callAdminApi } from '@/services/admin-api'
@@ -10,6 +11,7 @@ import type { UserRecord } from '@/types/domain'
 const loading = ref(false)
 const adjusting = ref(false)
 const adjustVisible = ref(false)
+const adjustFormRef = ref<FormInstance>()
 const list = ref<UserRecord[]>([])
 const total = ref(0)
 const query = reactive({ page: 1, pageSize: 20, keyword: '', status: '' })
@@ -19,6 +21,10 @@ const adjustment = reactive({
   amount: 1,
   reason: ''
 })
+const adjustRules: FormRules<typeof adjustment> = {
+  amount: [{ required: true, message: '请填写积分变化量', trigger: 'change' }],
+  reason: [{ required: true, message: '请填写调整原因', trigger: 'blur' }]
+}
 
 async function load() {
   loading.value = true
@@ -44,13 +50,17 @@ function openAdjust(row: UserRecord | any) {
 }
 
 async function adjustPoints() {
-  if (!adjustment.amount || !adjustment.reason.trim()) {
-    ElMessage.warning('积分变化量和原因不能为空')
+  const formRef = adjustFormRef.value
+  if (!formRef) return
+  try {
+    await formRef.validate()
+  } catch {
     return
   }
   await ElMessageBox.confirm(
     `确认给“${adjustment.userName}”调整${adjustment.amount}积分？该操作会写入审计和积分流水。`,
-    '积分调整确认'
+    '积分调整确认',
+    { center: true }
   )
   adjusting.value = true
   try {
@@ -136,12 +146,12 @@ onMounted(load)
   </section>
 
   <el-dialog v-model="adjustVisible" title="调整积分" width="460px">
-    <el-form label-position="top">
+    <el-form ref="adjustFormRef" :model="adjustment" :rules="adjustRules" label-position="top">
       <el-form-item label="用户"><el-input :model-value="adjustment.userName" disabled /></el-form-item>
-      <el-form-item label="变化量">
+      <el-form-item label="变化量" prop="amount">
         <el-input-number v-model="adjustment.amount" :min="-10000" :max="10000" />
       </el-form-item>
-      <el-form-item label="调整原因">
+      <el-form-item label="调整原因" prop="reason">
         <el-input v-model="adjustment.reason" type="textarea" :rows="4" maxlength="200" show-word-limit />
       </el-form-item>
       <el-alert title="禁止填写目标余额，只能提交正负变化量。" type="warning" :closable="false" />

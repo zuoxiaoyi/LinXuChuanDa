@@ -40,27 +40,27 @@ page {
 .brand-copy {
   position: absolute;
   z-index: 2;
-  right: 44rpx;
-  bottom: 502rpx;
+  left: 50%;
+  top: 46%;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
+  width: 650rpx;
+  max-width: 90vw;
   color: #fffaf0;
   text-shadow:
     0 2rpx 6rpx rgba(111, 69, 23, .5),
     0 0 18rpx rgba(255, 224, 160, .85);
+  transform: translate(-50%, -50%);
 }
 
-.brand-title {
-  font-family: "STKaiti", "KaiTi", serif;
-  font-size: 74rpx;
-  line-height: 1.12;
-  letter-spacing: 5rpx;
+.login-title-image {
+  width: 650rpx;
+  max-width: 90vw;
 }
 
 .brand-subtitle {
-  margin-top: 14rpx;
-  padding-right: 8rpx;
+  margin-top: 18rpx;
   font-size: 25rpx;
   letter-spacing: 8rpx;
 }
@@ -147,10 +147,18 @@ page {
 }
 
 .agreement-text {
-  display: block;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
   margin-top: 8rpx;
   color: #aa9d8a;
   font-size: 20rpx;
   line-height: 1.5;
   text-align: center;
+}
+
+.agreement-link {
+  color: #a77d3f;
+  text-decoration: underline;
 }

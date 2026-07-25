@@ -17,7 +17,7 @@ test('首页从 adminApi 获取7天日历和颜色', () => {
 test('首页展示农历干支和服务端颜色', () => {
   assert.match(pageWxml, /selectedDay\.lunarText/)
   assert.match(pageWxml, /selectedDay\.ganZhiText/)
-  assert.match(pageWxml, /selectedDay\.primaryColors/)
-  assert.match(pageWxml, /selectedDay\.secondaryColors/)
-  assert.match(pageWxml, /selectedDay\.avoidColors/)
+  assert.match(pageWxml, /selectedDay\.primaryColorItems/)
+  assert.match(pageWxml, /selectedDay\.secondaryColorItems/)
+  assert.match(pageWxml, /selectedDay\.avoidColorItems/)
 })

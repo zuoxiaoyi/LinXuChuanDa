@@ -6,6 +6,7 @@ const test = require('node:test')
 const root = join(__dirname, '..', '..')
 const pageJs = readFileSync(join(root, 'pages/index/index.js'), 'utf8')
 const pageWxml = readFileSync(join(root, 'pages/index/index.wxml'), 'utf8')
+const pageWxss = readFileSync(join(root, 'pages/index/index.wxss'), 'utf8')
 const appConfig = JSON.parse(readFileSync(join(root, 'app.json'), 'utf8'))
 
 test('首页通过 weatherApi 获取定位和手选城市天气', () => {
@@ -35,4 +36,10 @@ test('首页展示天气更新时间和出行护理', () => {
 test('小程序声明定位用途和隐私接口', () => {
   assert.match(appConfig.permission['scope.userLocation'].desc, /天气/)
   assert.ok(appConfig.requiredPrivateInfos.includes('getLocation'))
+})
+
+test('weather temperature range does not overlap metadata', () => {
+  const tempRule = pageWxss.match(/\.weather-temp\s*\{[^}]+\}/)?.[0] || ''
+  assert.doesNotMatch(tempRule, /width:\s*70rpx/)
+  assert.match(tempRule, /white-space:\s*nowrap/)
 })

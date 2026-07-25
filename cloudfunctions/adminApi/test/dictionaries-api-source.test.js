@@ -26,3 +26,24 @@ test('内容编辑角色可以维护标签字典', () => {
   const editorPermissions = source.match(/editor:\s*\[([\s\S]*?)\]/)?.[1] || ''
   assert.match(editorPermissions, /'configs\.write'/)
 })
+
+test('初始化默认字典会停用旧版颜色编码', () => {
+  assert.match(source, /activeDefaultColorCodes/)
+  assert.match(source, /command\.nin\(\[\.\.\.activeDefaultColorCodes\]\)/)
+  assert.match(source, /enabled:\s*false/)
+})
+
+test('Node SDK 通用新增和更新直接写入文档根字段', () => {
+  assert.match(
+    source,
+    /collection\(collectionName\)\.add\(\{\s*\.\.\.nowData,/
+  )
+  assert.match(
+    source,
+    /collection\(collectionName\)\.doc\(id\)\.update\(\{\s*\.\.\.nowData,/
+  )
+  assert.doesNotMatch(
+    source,
+    /collection\(collectionName\)\.add\(\{\s*data:/
+  )
+})

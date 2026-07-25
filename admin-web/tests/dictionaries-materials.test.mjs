@@ -31,3 +31,11 @@ test('素材表单只使用字典选项并自动展示五行', () => {
   assert.doesNotMatch(outfits, /allow-create/)
   assert.doesNotMatch(accessories, /allow-create/)
 })
+
+test('穿搭发布前会在表单层校验温度等必填项', () => {
+  assert.match(outfits, /outfitFormRef/)
+  assert.match(outfits, /outfitRules/)
+  assert.match(outfits, /temperatureMin/)
+  assert.match(outfits, /temperatureMax/)
+  assert.match(outfits, /formRef\.validate/)
+})
