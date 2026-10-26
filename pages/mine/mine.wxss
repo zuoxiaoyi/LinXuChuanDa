@@ -34,7 +34,7 @@ page {
 .mine-content {
   position: relative;
   z-index: 1;
-  padding: 30rpx 28rpx calc(150rpx + env(safe-area-inset-bottom));
+  padding: 30rpx 40rpx calc(150rpx + env(safe-area-inset-bottom));
 }
 
 .profile-card,

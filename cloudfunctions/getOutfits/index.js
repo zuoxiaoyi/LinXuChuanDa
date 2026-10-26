@@ -3,6 +3,7 @@ const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
 const db = cloud.database()
+const { pickByScene } = require('./recommendation-rules')
 
 const SCENES = [
   { code: 'commute', name: '通勤' },
@@ -49,38 +50,6 @@ function colorTokens(names, colors) {
   return tokens
 }
 
-function scoreOutfit(outfit, sceneCode, colorSet, temperature) {
-  const primaryColors = toArray(outfit.primaryColorCodes)
-  if (!primaryColors.some(code => colorSet.has(code))) return -1
-
-  let score = Number(outfit.priority) || 0
-  if (toArray(outfit.sceneCodes).includes(sceneCode)) score += 100
-
-  const min = Number(outfit.temperatureMin)
-  const max = Number(outfit.temperatureMax)
-  if (Number.isFinite(temperature) && Number.isFinite(min) && Number.isFinite(max)) {
-    if (temperature >= min && temperature <= max) score += 30
-    else score -= Math.min(40, Math.abs(temperature - Math.max(Math.min(temperature, max), min)) * 4)
-  }
-
-  return score
-}
-
-function pickByScene(outfits, scenes, colorSet, temperature) {
-  const used = new Set()
-  return scenes.map(scene => {
-    const ranked = outfits
-      .filter(item => !used.has(item._id))
-      .map(item => ({ item, score: scoreOutfit(item, scene.code, colorSet, temperature) }))
-      .filter(entry => entry.score >= 0)
-      .sort((a, b) => b.score - a.score)
-    const picked = ranked[0]?.item || null
-    if (!picked) return null
-    used.add(picked._id)
-    return { ...picked, sceneName: scene.name }
-  }).filter(Boolean)
-}
-
 async function dailyRecommendation(event) {
   const [colorDict, sceneDict] = await Promise.all([
     dictionaries('color'),
@@ -105,12 +74,13 @@ async function dailyRecommendation(event) {
     .map(normalizeDoc)
     .filter(item => item.inventoryStatus !== 'unavailable')
 
-  const bestList = pickByScene(outfits, scenes, primarySet, temperature)
+  const bestList = pickByScene(outfits, scenes, primarySet, temperature, { allowReuse: true })
   const secondList = pickByScene(
     outfits.filter(item => !bestList.some(best => best._id === item._id)),
     scenes,
     secondarySet,
-    temperature
+    temperature,
+    { allowReuse: true, fallbackOutfits: outfits }
   )
 
   let accessories = []

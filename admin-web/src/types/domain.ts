@@ -53,6 +53,7 @@ export interface Outfit {
   priority: number
   status: PublishStatus
   version?: number
+  createdAt?: string
   updatedAt?: string
 }
 
@@ -71,6 +72,7 @@ export interface Accessory {
   priority: number
   status: PublishStatus
   version?: number
+  createdAt?: string
   updatedAt?: string
 }
 

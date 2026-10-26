@@ -18,6 +18,17 @@ test('穿搭和配饰列表会把旧标签字段规范成数组', () => {
   assert.doesNotMatch(outfitsPage, /\[\.\.\.row\.elementTags/)
 })
 
+test('穿搭和配饰列表展示上传时间与编辑时间，旧数据缺失时保持空白', () => {
+  assert.match(outfitsPage, /label="上传时间"/)
+  assert.match(outfitsPage, /row\.createdAt/)
+  assert.match(outfitsPage, /row\.updatedAt/)
+  assert.match(accessoriesPage, /label="上传时间"/)
+  assert.match(accessoriesPage, /row\.createdAt/)
+  assert.match(accessoriesPage, /row\.updatedAt/)
+  assert.match(outfitsPage, /if \(!value\) return ''/)
+  assert.match(accessoriesPage, /if \(!value\) return ''/)
+})
+
 test('Web 图片预览会把 cloud 文件 ID 转换为临时 HTTPS 地址', () => {
   assert.match(mediaService, /getTempFileURL/)
   assert.match(mediaService, /resolveCloudFileUrls/)

@@ -132,6 +132,13 @@ function dictionaryNames(type: Parameters<typeof options>[0], codes: unknown) {
   return toTagArray(codes).map(code => dictionaryName(type, code)).join(' · ')
 }
 
+function formatDateTime(value: unknown) {
+  if (!value) return ''
+  const date = new Date(String(value))
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleString('zh-CN', { hour12: false })
+}
+
 onMounted(async () => {
   await loadDictionaries()
   await load()
@@ -186,6 +193,12 @@ onMounted(async () => {
           </template>
         </el-table-column>
         <el-table-column prop="priority" label="优先级" width="90" />
+        <el-table-column label="上传时间" width="170">
+          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+        </el-table-column>
+        <el-table-column label="更新时间" width="170">
+          <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
+        </el-table-column>
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="row.status === 'published' ? 'success' : 'info'">{{ row.status }}</el-tag>
