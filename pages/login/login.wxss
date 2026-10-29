@@ -140,11 +140,16 @@ page {
   max-width: 110rpx;
   margin: 0;
   padding: 0;
+  border: none;
   border-radius: 50%;
   overflow: hidden;
   background: #efe6d4;
   box-shadow: 0 0 0 4rpx rgba(183, 137, 69, .35);
   box-sizing: border-box;
+}
+
+.avatar-choose::after {
+  border: none;
 }
 
 .avatar-choose-hover {

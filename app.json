@@ -12,16 +12,7 @@
     "navigationStyle": "custom"
   },
   "style": "v2",
-  "renderer": "skyline",
-  "rendererOptions": {
-    "skyline": {
-      "defaultDisplayBlock": true,
-      "defaultContentBox": true,
-      "disableABTest": true,
-      "sdkVersionBegin": "3.0.0",
-      "sdkVersionEnd": "15.255.255"
-    }
-  },
+  "renderer": "webview",
   "componentFramework": "glass-easel",
   "permission": {
     "scope.userLocation": {

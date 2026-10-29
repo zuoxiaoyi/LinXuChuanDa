@@ -28,9 +28,10 @@
       <text class="profile-fill-title">个性化资料（选填）</text>
       <view class="profile-fill-row">
         <view class="avatar-wrap">
-          <view
+          <button
             class="avatar-choose"
-            bindtap="onChooseAvatar"
+            open-type="chooseAvatar"
+            bind:chooseavatar="onChooseAvatar"
             hover-class="avatar-choose-hover"
           >
             <image
@@ -38,7 +39,7 @@
               src="{{avatarUrl || '/images/icons/user.png'}}"
               mode="aspectFill"
             />
-          </view>
+          </button>
           <view class="avatar-badge">＋</view>
         </view>
         <input
@@ -50,7 +51,7 @@
           bindinput="onNickNameInput"
         />
       </view>
-      <text class="profile-fill-hint">点击头像从相册或拍照选择，昵称可直接输入</text>
+      <text class="profile-fill-hint">可一键使用微信头像与昵称，也可自行填写自定义资料</text>
     </view>
 
     <button

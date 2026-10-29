@@ -26,22 +26,11 @@ Page({
     this._pageActive = false
   },
 
-  // 选择头像：Skyline 下 open-type="chooseAvatar" 原生选择器不弹窗，
-  // 改用 wx.chooseMedia（普通 JS API，Skyline/WebView 均可用），从相册/拍照获取
-  onChooseAvatar() {
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      sourceType: ['album', 'camera'],
-      sizeType: ['compressed'],
-      success: (res) => {
-        const file = res.tempFiles && res.tempFiles[0]
-        if (file && file.tempFilePath) {
-          this.setData({ avatarUrl: file.tempFilePath })
-        }
-      },
-      fail: () => {}
-    })
+  // 选择头像：WebView 下 open-type="chooseAvatar" 弹出微信头像选择器，
+  // 用户选择后通过 bind:chooseavatar 事件回传头像临时路径（e.detail.avatarUrl）
+  onChooseAvatar(e) {
+    const { avatarUrl } = e.detail || {}
+    if (avatarUrl) this.setData({ avatarUrl })
   },
 
   // 昵称输入（type="nickname" 触发微信昵称填写能力）
