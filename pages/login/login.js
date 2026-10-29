@@ -26,10 +26,22 @@ Page({
     this._pageActive = false
   },
 
-  // 头像昵称填写能力：选择头像（基础库 ≥ 2.21.2，以官方文档核实）
-  onChooseAvatar(e) {
-    const { avatarUrl } = e.detail || {}
-    if (avatarUrl) this.setData({ avatarUrl })
+  // 选择头像：Skyline 下 open-type="chooseAvatar" 原生选择器不弹窗，
+  // 改用 wx.chooseMedia（普通 JS API，Skyline/WebView 均可用），从相册/拍照获取
+  onChooseAvatar() {
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['album', 'camera'],
+      sizeType: ['compressed'],
+      success: (res) => {
+        const file = res.tempFiles && res.tempFiles[0]
+        if (file && file.tempFilePath) {
+          this.setData({ avatarUrl: file.tempFilePath })
+        }
+      },
+      fail: () => {}
+    })
   },
 
   // 昵称输入（type="nickname" 触发微信昵称填写能力）
