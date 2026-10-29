@@ -17,8 +17,8 @@
   <image class="detail-bg" src="/images/common/index_bg.png" mode="aspectFill" />
   <view class="detail-content">
     <view class="date-heading">
-      <text>{{dateText}}</text>
-      <text class="date-subtitle">今日场景穿搭</text>
+      <text>{{singleMode ? '穿搭详情' : dateText}}</text>
+      <text class="date-subtitle">{{singleMode ? '已收藏的单套穿搭' : '今日场景穿搭'}}</text>
     </view>
 
     <view class="state-container" wx:if="{{loading}}">
@@ -29,6 +29,54 @@
       <image class="state-icon" src="/images/icons/warning.png" mode="aspectFit" />
       <text>{{error}}</text>
       <button class="retry-button" bindtap="onRetry">重新加载</button>
+    </view>
+
+    <view class="state-container" wx:elif="{{singleMode}}">
+      <view class="single-outfit">
+        <image
+          wx:if="{{singleOutfit.coverUrl}}"
+          class="single-cover"
+          src="{{singleOutfit.coverUrl}}"
+          mode="widthFix"
+          lazy-load
+          data-url="{{singleOutfit.coverUrl}}"
+          bindtap="onPreviewImage"
+        />
+        <view class="image-placeholder empty-outfit" wx:else>
+          <image class="image-placeholder-icon" src="/images/icons/image.png" mode="aspectFit" />
+          <text>暂无图片</text>
+        </view>
+
+        <text class="single-title">{{singleOutfit.title}}</text>
+
+        <view class="single-tags" wx:if="{{singleOutfit.tags.length}}">
+          <text class="single-tag" wx:for="{{singleOutfit.tags}}" wx:key="*this">{{item}}</text>
+        </view>
+
+        <view
+          class="collect-bar"
+          catchtap="onToggleCollectSingle"
+        >
+          <view class="collect-button {{singleCollected ? 'is-collected' : ''}}">
+            <image
+              class="collect-icon"
+              src="{{singleCollected ? '/images/icons/star.png' : '/images/icons/star-outline.png'}}"
+              mode="aspectFit"
+            />
+            <text class="collect-text">{{singleCollected ? '已收藏' : '收藏'}}</text>
+          </view>
+        </view>
+
+        <text class="single-description" wx:if="{{singleOutfit.description}}">{{singleOutfit.description}}</text>
+
+        <view class="single-items" wx:if="{{singleOutfit.items.length}}">
+          <text class="single-items-heading">单品清单</text>
+          <view class="single-item" wx:for="{{singleOutfit.items}}" wx:key="name">
+            <text class="single-item-name">{{item.name}}</text>
+            <text class="single-item-brand" wx:if="{{item.brand}}">{{item.brand}}</text>
+          </view>
+        </view>
+      </view>
     </view>
 
     <view class="state-container" wx:elif="{{bestList.length === 0 && secondList.length === 0}}">

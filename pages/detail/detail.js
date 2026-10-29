@@ -92,6 +92,10 @@ function toSceneColumns(list, sceneNames, showSceneName) {
 
 Page({
   data: {
+    singleMode: false,
+    outfitId: '',
+    singleOutfit: {},
+    singleCollected: false,
     dateIndex: 0,
     dateKey: '',
     dateText: '',
@@ -108,6 +112,19 @@ Page({
   },
 
   onLoad(options) {
+    const id = (options.id || '').trim()
+    if (id) {
+      const redirectUrl = `/pages/detail/detail?id=${encodeURIComponent(id)}`
+      if (!isLoggedIn()) {
+        this.setData({ loading: false, singleMode: true, outfitId: id })
+        goToLogin(redirectUrl)
+        return
+      }
+      this.setData({ singleMode: true, outfitId: id })
+      this.loadSingleOutfit(id)
+      return
+    }
+
     const dateIndex = Math.max(0, Math.min(6, Number(options.dateIndex) || 0))
     const redirectUrl = `/pages/detail/detail?dateIndex=${dateIndex}`
     if (!isLoggedIn()) {
@@ -124,6 +141,63 @@ Page({
       dateText: `${date.getMonth() + 1}月${date.getDate()}日 星期${WEEKDAYS[date.getDay()]}`
     })
     this.loadDailyOutfits()
+  },
+
+  async loadSingleOutfit(id) {
+    this.setData({ loading: true, error: '' })
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'getOutfitDetail',
+        data: { outfitId: id }
+      })
+      const result = res.result || {}
+      if (!result.outfit) {
+        this.setData({ error: '未找到该穿搭，可能已被下架或删除' })
+        return
+      }
+      this.setData({
+        singleOutfit: result.outfit,
+        singleCollected: !!result.isCollected
+      })
+    } catch (err) {
+      console.error('加载穿搭详情失败:', err)
+      this.setData({ error: '穿搭详情加载失败，请稍后重试' })
+    } finally {
+      this.setData({ loading: false })
+    }
+  },
+
+  async onToggleCollectSingle() {
+    if (!requireLogin('登录后才能收藏单套穿搭')) return
+    const outfitId = this.data.outfitId
+    const isCollected = this.data.singleCollected
+    if (!outfitId || this.data.collectingId) return
+
+    this.setData({ collectingId: outfitId })
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'collectOutfit',
+        data: {
+          outfitId,
+          action: isCollected ? 'cancel' : 'collect'
+        }
+      })
+
+      if (!res.result || !res.result.success) {
+        throw new Error((res.result && res.result.msg) || '收藏失败')
+      }
+
+      this.setData({ singleCollected: !isCollected })
+      wx.showToast({
+        title: isCollected ? '已取消收藏' : '收藏成功',
+        icon: 'success'
+      })
+    } catch (err) {
+      console.error('收藏操作失败:', err)
+      wx.showToast({ title: err.message || '收藏失败', icon: 'none' })
+    } finally {
+      this.setData({ collectingId: '' })
+    }
   },
 
   callCalendar() {
@@ -257,6 +331,10 @@ Page({
   },
 
   onRetry() {
+    if (this.data.singleMode) {
+      this.loadSingleOutfit(this.data.outfitId)
+      return
+    }
     this.loadDailyOutfits()
   },
 
