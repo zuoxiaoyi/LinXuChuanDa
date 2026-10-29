@@ -1,0 +1,9 @@
+{
+  "name": "seedContent",
+  "version": "1.0.0",
+  "description": "把用户协议/隐私政策文案种子进后台内容配置",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}
