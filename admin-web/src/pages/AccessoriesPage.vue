@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { Plus, Search } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
@@ -22,6 +22,32 @@ const total = ref(0)
 const query = reactive({ page: 1, pageSize: 20, keyword: '', status: '' })
 const { load: loadDictionaries, options, elementsForColors } = useDictionaries()
 
+// 状态中文映射
+const STATUS_LABELS: Record<string, string> = {
+  draft: '草稿',
+  published: '已发布',
+  disabled: '已下架'
+}
+function statusLabel(status: unknown) {
+  return STATUS_LABELS[String(status || '')] || String(status || '')
+}
+function statusTagType(status: unknown): 'success' | 'warning' | 'info' {
+  const value = String(status || '')
+  if (value === 'published') return 'success'
+  if (value === 'disabled') return 'warning'
+  return 'info'
+}
+
+// 表格多选与批量操作
+const selectedRows = ref<AccessoryRow[]>([])
+const batchWorking = ref(false)
+const batchEditVisible = ref(false)
+const batchPriority = ref(0)
+
+function onSelectionChange(rows: AccessoryRow[]) {
+  selectedRows.value = rows
+}
+
 const blankAccessory = (): Accessory => ({
   name: '',
   description: '',
@@ -42,6 +68,15 @@ const accessoryRules: FormRules<Accessory> = {
   primaryColorCodes: [{ type: 'array', required: true, message: '请选择主色', trigger: 'change' }],
   sceneCodes: [{ type: 'array', required: true, message: '请选择场景标签', trigger: 'change' }],
   accessoryTypeCode: [{ required: true, message: '请选择配饰类型', trigger: 'change' }]
+}
+// 校验失败时用于把字段名翻译成中文提示
+const accessoryFieldLabels: Record<string, string> = {
+  imageUrl: '配饰图片',
+  name: '名称',
+  description: '说明',
+  primaryColorCodes: '主色',
+  sceneCodes: '场景标签',
+  accessoryTypeCode: '配饰类型'
 }
 
 function toTagArray(value: unknown) {
@@ -83,8 +118,15 @@ async function load() {
   }
 }
 
+// 彻底重置表单：先删掉上次编辑残留的键（_id/version/imagePreviewUrl 等），
+// 否则"先编辑再新增"会带着旧 _id 提交，把上一条记录覆盖掉
+function resetForm(source?: Record<string, unknown>) {
+  Object.keys(form).forEach(key => delete (form as Record<string, unknown>)[key])
+  Object.assign(form, blankAccessory(), source || {})
+}
+
 function edit(row?: Accessory | any) {
-  Object.assign(form, blankAccessory(), row ? JSON.parse(JSON.stringify(row)) : {})
+  resetForm(row ? JSON.parse(JSON.stringify(row)) : undefined)
   drawerVisible.value = true
 }
 
@@ -93,7 +135,13 @@ async function save() {
   if (!formRef) return
   try {
     await formRef.validate()
-  } catch {
+  } catch (invalid) {
+    // 校验失败必须给明确提示，否则表现为"点保存没反应"
+    const missing = Object.keys((invalid || {}) as Record<string, unknown>)
+      .map(key => accessoryFieldLabels[key] || key)
+    ElMessage.warning(
+      missing.length ? `请先完成必填项：${missing.join('、')}` : '请检查表单必填项'
+    )
     return
   }
   saving.value = true
@@ -112,6 +160,15 @@ async function save() {
 async function setStatus(row: Accessory | any) {
   const status = row.status === 'published' ? 'disabled' : 'published'
   try {
+    await ElMessageBox.confirm(
+      `确认将“${row.name}”设置为${status === 'published' ? '已发布' : '已下架'}？`,
+      '状态确认',
+      { center: true, confirmButtonText: '确认', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  try {
     await callAdminApi('accessories.setStatus', {
       id: row._id,
       status,
@@ -122,6 +179,113 @@ async function setStatus(row: Accessory | any) {
   } catch (error: any) {
     ElMessage.error(error?.message || '状态更新失败')
   }
+}
+
+async function removeRow(row: AccessoryRow | Record<string, unknown>) {
+  // el-table 插槽的 row 为 DefaultRow，这里收敛为列表行类型
+  const target = row as AccessoryRow
+  try {
+    await ElMessageBox.confirm(
+      `确认删除“${target.name}”？删除后小程序端将不再展示该配饰。`,
+      '删除确认',
+      { type: 'warning', center: true, confirmButtonText: '删除', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  try {
+    await callAdminApi('accessories.remove', { id: target._id, version: target.version })
+    ElMessage.success('已删除')
+    await load()
+  } catch (error: any) {
+    ElMessage.error(error?.message || '删除失败')
+  }
+}
+
+// 批量执行：逐条调用，汇总成功/失败结果
+async function runBatch(
+  rows: AccessoryRow[],
+  task: (row: AccessoryRow) => Promise<unknown>,
+  label: string
+) {
+  batchWorking.value = true
+  let ok = 0
+  const failed: string[] = []
+  for (const row of rows) {
+    try {
+      await task(row)
+      ok += 1
+    } catch (error: any) {
+      failed.push(`${row.name || '未命名'}（${error?.message || '失败'}）`)
+    }
+  }
+  batchWorking.value = false
+  if (failed.length) {
+    ElMessage.warning(`${label}完成：成功 ${ok} 条，失败 ${failed.length} 条 —— ${failed.join('；')}`)
+  } else {
+    ElMessage.success(`${label}完成，共 ${ok} 条`)
+  }
+  await load()
+}
+
+async function batchPublish() {
+  const rows = [...selectedRows.value]
+  if (!rows.length) return
+  try {
+    await ElMessageBox.confirm(
+      `确认批量发布选中的 ${rows.length} 条配饰？信息不完整的条目会发布失败。`,
+      '批量发布',
+      { center: true, confirmButtonText: '发布', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  await runBatch(
+    rows,
+    row => callAdminApi('accessories.setStatus', {
+      id: row._id,
+      status: 'published',
+      version: row.version
+    }),
+    '批量发布'
+  )
+}
+
+async function batchRemove() {
+  const rows = [...selectedRows.value]
+  if (!rows.length) return
+  try {
+    await ElMessageBox.confirm(
+      `确认删除选中的 ${rows.length} 条配饰？删除后不可恢复。`,
+      '批量删除',
+      { type: 'warning', center: true, confirmButtonText: '删除', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  await runBatch(
+    rows,
+    row => callAdminApi('accessories.remove', { id: row._id, version: row.version }),
+    '批量删除'
+  )
+}
+
+// 批量编辑：统一修改选中行的优先级
+function batchEdit() {
+  if (!selectedRows.value.length) return
+  batchPriority.value = 0
+  batchEditVisible.value = true
+}
+
+async function applyBatchEdit() {
+  const rows = [...selectedRows.value]
+  batchEditVisible.value = false
+  if (!rows.length) return
+  await runBatch(
+    rows,
+    row => callAdminApi('accessories.save', { ...row, priority: batchPriority.value }),
+    '批量编辑'
+  )
 }
 
 function dictionaryName(type: Parameters<typeof options>[0], code: string) {
@@ -170,9 +334,38 @@ onMounted(async () => {
         <el-option label="已下架" value="disabled" />
       </el-select>
       <el-button @click="load">查询</el-button>
+      <div class="toolbar-spacer" />
+      <el-button
+        type="success"
+        plain
+        :disabled="!selectedRows.length"
+        :loading="batchWorking"
+        @click="batchPublish"
+      >
+        批量发布
+      </el-button>
+      <el-button
+        plain
+        :disabled="!selectedRows.length"
+        :loading="batchWorking"
+        @click="batchEdit"
+      >
+        批量编辑
+      </el-button>
+      <el-button
+        type="danger"
+        plain
+        :disabled="!selectedRows.length"
+        :loading="batchWorking"
+        @click="batchRemove"
+      >
+        批量删除
+      </el-button>
     </div>
+
     <div class="table-wrap">
-      <el-table v-loading="loading" :data="list">
+      <el-table v-loading="loading" :data="list" @selection-change="onSelectionChange">
+        <el-table-column type="selection" width="45" />
         <el-table-column label="配饰" min-width="260">
           <template #default="{ row }">
             <div class="accessory-cell">
@@ -201,15 +394,20 @@ onMounted(async () => {
         </el-table-column>
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'published' ? 'success' : 'info'">{{ row.status }}</el-tag>
+            <el-tag :type="statusTagType(row.status)">{{ statusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="180">
+        <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="edit(row)">编辑</el-button>
-            <el-button link :type="row.status === 'published' ? 'warning' : 'success'" @click="setStatus(row)">
+            <el-button
+              link
+              :type="row.status === 'published' ? 'warning' : 'success'"
+              @click="setStatus(row)"
+            >
               {{ row.status === 'published' ? '下架' : '发布' }}
             </el-button>
+            <el-button link type="danger" @click="removeRow(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -263,9 +461,32 @@ onMounted(async () => {
       <el-button type="primary" :loading="saving" @click="save">保存</el-button>
     </template>
   </el-drawer>
+
+  <el-dialog
+    v-model="batchEditVisible"
+    title="批量编辑"
+    width="400px"
+    align-center
+  >
+    <el-form label-position="top">
+      <el-form-item label="优先级（将应用到选中的配饰）">
+        <el-input-number v-model="batchPriority" :min="-100" :max="100" style="width: 100%" />
+      </el-form-item>
+      <small class="batch-edit-hint">当前选中 {{ selectedRows.length }} 条；数值越大在匹配排序中越靠前。</small>
+    </el-form>
+    <template #footer>
+      <el-button @click="batchEditVisible = false">取消</el-button>
+      <el-button type="primary" :loading="batchWorking" @click="applyBatchEdit">应用</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <style scoped>
+.batch-edit-hint {
+  color: #978b79;
+  font-size: 12px;
+}
+
 .accessory-cell {
   display: flex;
   align-items: center;
