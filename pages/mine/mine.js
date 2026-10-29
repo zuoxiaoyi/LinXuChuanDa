@@ -1,6 +1,6 @@
 const app = getApp()
 const { isLoggedIn, requireLogin } = require('../../utils/auth')
-const { toDisplayUrl, safePlaceholder } = require('../../utils/cloudfile')
+const { toDisplayUrl, safePlaceholder, isDefaultWxAvatar } = require('../../utils/cloudfile')
 
 Page({
   data: {
@@ -67,8 +67,11 @@ Page({
         throw new Error('用户资料不存在')
       }
 
-      // Skyline 下 <image> 不支持 cloud://，统一换成 https 临时链接
-      const avatarUrl = await toDisplayUrl(user.avatarUrl)
+      // Skyline 下 <image> 不支持 cloud://，统一换成 https 临时链接；
+      // 微信默认头像（qlogo.cn）视为无自定义头像，直接回退本地占位图，避免依赖外部域名白名单
+      const avatarUrl = isDefaultWxAvatar(user.avatarUrl)
+        ? ''
+        : await toDisplayUrl(user.avatarUrl)
       const displayUser = {
         ...user,
         avatarUrl: avatarUrl || '/images/icons/user.png'
