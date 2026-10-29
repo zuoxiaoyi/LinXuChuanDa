@@ -1,4 +1,5 @@
 const { isLoggedIn, goToLogin } = require('../../utils/auth')
+const { ensurePrivacyAuthorize } = require('../../utils/privacy')
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 
@@ -68,8 +69,11 @@ Page({
       selectedDay: this.buildDayDetail(0, dateList)
     })
     this.loadCalendarColors()
-    this.initializeWeather()
     this.initRewardedVideoAd()
+    // 隐私协议授权（首页会调用 wx.getLocation），通过后再获取位置
+    ensurePrivacyAuthorize()
+      .then(() => this.initializeWeather())
+      .catch(() => this.initializeWeather())
   },
 
   onShow() {

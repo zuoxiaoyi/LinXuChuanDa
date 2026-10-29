@@ -165,6 +165,13 @@ page {
   justify-content: center;
   gap: 8rpx;
   min-width: 0;
+  padding: 6rpx 12rpx;
+  border-radius: 14rpx;
+  cursor: pointer;
+}
+
+.color-palette-item--hover {
+  background: rgba(167, 125, 63, .14);
 }
 
 .color-palette-text {

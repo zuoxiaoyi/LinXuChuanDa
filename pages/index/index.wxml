@@ -25,7 +25,14 @@
         <image class="color-row-bg" src="/images/common/kuang.png" mode="scaleToFill" />
         <text class="color-label best">首选颜色</text>
         <view class="color-tags">
-          <view class="color-palette-item" wx:for="{{selectedDay.primaryColorItems}}" wx:key="name">
+          <view
+            class="color-palette-item"
+            wx:for="{{selectedDay.primaryColorItems}}"
+            wx:key="name"
+            bindtap="onGoDetail"
+            hover-class="color-palette-item--hover"
+            hover-stay-time="80"
+          >
             <text class="color-palette-text">{{item.name}}</text>
             <image class="color-palette-icon" src="{{item.icon}}" mode="aspectFit" />
           </view>
@@ -35,7 +42,14 @@
         <image class="color-row-bg" src="/images/common/kuang.png" mode="scaleToFill" />
         <text class="color-label second">次选颜色</text>
         <view class="color-tags">
-          <view class="color-palette-item" wx:for="{{selectedDay.secondaryColorItems}}" wx:key="name">
+          <view
+            class="color-palette-item"
+            wx:for="{{selectedDay.secondaryColorItems}}"
+            wx:key="name"
+            bindtap="onGoDetail"
+            hover-class="color-palette-item--hover"
+            hover-stay-time="80"
+          >
             <text class="color-palette-text">{{item.name}}</text>
             <image class="color-palette-icon" src="{{item.icon}}" mode="aspectFit" />
           </view>
@@ -45,7 +59,14 @@
         <image class="color-row-bg" src="/images/common/kuang.png" mode="scaleToFill" />
         <text class="color-label avoid">不建议色</text>
         <view class="color-tags">
-          <view class="color-palette-item" wx:for="{{selectedDay.avoidColorItems}}" wx:key="name">
+          <view
+            class="color-palette-item"
+            wx:for="{{selectedDay.avoidColorItems}}"
+            wx:key="name"
+            bindtap="onGoDetail"
+            hover-class="color-palette-item--hover"
+            hover-stay-time="80"
+          >
             <text class="color-palette-text">{{item.name}}</text>
             <image class="color-palette-icon" src="{{item.icon}}" mode="aspectFit" />
           </view>
