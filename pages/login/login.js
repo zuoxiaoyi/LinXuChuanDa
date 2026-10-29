@@ -1,6 +1,9 @@
 const app = getApp()
 const { normalizeRedirect } = require('../../utils/login-route')
 
+// 云环境 ID（与 app.js 保持一致）。极端情况下 onLaunch 的 cloud.init 尚未就绪时用于兜底初始化。
+const CLOUD_ENV = 'cloudbase-d7gr1giub2c847b49'
+
 Page({
   data: {
     canLogin: true,
@@ -44,12 +47,22 @@ Page({
     this.setData({ loading: true, canLogin: false, error: '' })
 
     try {
-      // 静默登录：只换取 openid 与积分，不再调用已废弃的 wx.getUserProfile
-      const loginRes = await wx.cloud.callFunction({ name: 'login', data: {} })
-      if (!loginRes.result?.success || !loginRes.result.userInfo) {
-        throw new Error(loginRes.result?.message || '登录服务返回异常')
+      // 兜底：极少数情况下 onLaunch 的 cloud.init 尚未完成，这里确保云环境已就绪
+      if (!wx.cloud || !wx.cloud.customEnv) {
+        try { wx.cloud.init({ env: CLOUD_ENV, traceUser: true }) } catch (e) {}
       }
-      const result = loginRes.result
+
+      // 静默登录：只换取 openid 与积分，不再调用已废弃的 wx.getUserProfile
+      const loginRes = await this.callLoginWithRetry({})
+      const result = loginRes.result || {}
+      if (!result.success || !result.userInfo) {
+        // 登录态失效（安卓偶发会话过期）：清掉本地残留并引导重进，等价于手动删除小程序重扫
+        if (result.code === 'NO_OPENID') {
+          this.handleStaleSession(result.message)
+          return
+        }
+        throw new Error(result.message || '登录服务返回异常')
+      }
 
       const userInfo = {
         ...result.userInfo,
@@ -91,6 +104,41 @@ Page({
     }
   },
 
+  // 带重试的云函数登录调用：应对安卓上云函数冷启动/瞬时网络抖动造成的偶发失败
+  // （一次失败后用户重扫往往就好，这里自动重试一次，多数情况自愈）。
+  async callLoginWithRetry(data, retries = 1) {
+    let lastErr = null
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const res = await wx.cloud.callFunction({ name: 'login', data })
+        // 云端明确返回了结果对象就视为成功通信，由调用方判断 success
+        if (res && res.result) return res
+        lastErr = new Error('云端返回空响应')
+      } catch (callErr) {
+        lastErr = callErr
+        console.warn(`[login] 调用失败(第 ${attempt + 1} 次):`, callErr)
+      }
+    }
+    throw lastErr
+  },
+
+  // 登录态失效（NO_OPENID）：清掉本地残留并引导用户退出重进，
+  // 等价于手动"删除小程序重新扫码进入"，避免用户卡在失败态。
+  handleStaleSession(message) {
+    try { wx.removeStorageSync('userInfo') } catch (e) {}
+    app.globalData.userInfo = null
+    app.globalData.isLogin = false
+    app.globalData.openid = ''
+    if (!this._pageActive) return
+    this.setData({ loading: false, canLogin: true, error: '' })
+    wx.showModal({
+      title: '登录态失效',
+      content: (message || '登录态已失效') + '，请退出小程序后重新进入，即可恢复正常登录。',
+      showCancel: false,
+      confirmText: '我知道了'
+    })
+  },
+
   // 将填写的头像/昵称上传并写入用户资料
   async saveProfile() {
     let avatarUrl = this.data.avatarUrl
@@ -122,7 +170,7 @@ Page({
 
     let res
     try {
-      res = await wx.cloud.callFunction({ name: 'login', data: updateData })
+      res = await this.callLoginWithRetry(updateData)
     } catch (callErr) {
       console.error('头像/昵称上报云端失败:', callErr)
       throw new Error('头像同步到云端失败')

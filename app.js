@@ -45,6 +45,9 @@ App({
     if (userInfo) {
       this.globalData.userInfo = userInfo
       this.globalData.isLogin = true
+      // 缓存的用户资料来自云端文档，本身携带 _openid，启动时一并恢复，
+      // 避免后续 saveProfile 上传头像时 openid 为空而落到 Date.now() 路径。
+      if (userInfo._openid) this.globalData.openid = userInfo._openid
     } else {
       this.globalData.userInfo = null
       this.globalData.isLogin = false
