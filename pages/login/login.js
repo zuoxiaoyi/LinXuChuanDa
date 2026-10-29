@@ -6,7 +6,10 @@ Page({
     canLogin: true,
     loading: false,
     error: '',
-    redirectUrl: ''
+    redirectUrl: '',
+    // 头像昵称填写能力（选填，替代已废弃的 wx.getUserProfile）
+    avatarUrl: '',
+    nickName: ''
   },
 
   onLoad(options = {}) {
@@ -23,23 +26,25 @@ Page({
     this._pageActive = false
   },
 
+  // 头像昵称填写能力：选择头像（基础库 ≥ 2.21.2，以官方文档核实）
+  onChooseAvatar(e) {
+    const { avatarUrl } = e.detail || {}
+    if (avatarUrl) this.setData({ avatarUrl })
+  },
+
+  // 昵称输入（type="nickname" 触发微信昵称填写能力）
+  onNickNameInput(e) {
+    this.setData({ nickName: e.detail.value })
+  },
+
   async onLogin() {
     if (!this.data.canLogin || this.data.loading) return
 
     this.setData({ loading: true, canLogin: false, error: '' })
 
     try {
-      const profileRes = await wx.getUserProfile({
-        desc: '用于完善会员资料与展示头像昵称'
-      })
-      const profile = profileRes.userInfo || {}
-      const loginRes = await wx.cloud.callFunction({
-        name: 'login',
-        data: {
-          nickName: profile.nickName,
-          avatarUrl: profile.avatarUrl
-        }
-      })
+      // 静默登录：只换取 openid 与积分，不再调用已废弃的 wx.getUserProfile
+      const loginRes = await wx.cloud.callFunction({ name: 'login', data: {} })
       if (!loginRes.result?.success || !loginRes.result.userInfo) {
         throw new Error(loginRes.result?.message || '登录服务返回异常')
       }
@@ -47,8 +52,8 @@ Page({
 
       const userInfo = {
         ...result.userInfo,
-        nickName: result.userInfo.nickName || profile.nickName,
-        avatarUrl: result.userInfo.avatarUrl || profile.avatarUrl
+        nickName: result.userInfo.nickName || '灵序用户',
+        avatarUrl: result.userInfo.avatarUrl || ''
       }
 
       app.globalData.userInfo = userInfo
@@ -57,6 +62,16 @@ Page({
       app.globalData.points = Number(result.points) || 0
       wx.setStorageSync('userInfo', userInfo)
       wx.showToast({ title: '登录成功', icon: 'success' })
+
+      // 若用户填写了头像/昵称，则同步到云端（失败不影响登录）
+      try {
+        if (this.data.avatarUrl || this.data.nickName) {
+          await this.saveProfile()
+        }
+      } catch (profileErr) {
+        console.error('资料保存失败（不影响登录）:', profileErr)
+      }
+
       this.completeLoginNavigation()
     } catch (err) {
       const errMessage = err?.errMsg || err?.message || ''
@@ -71,6 +86,43 @@ Page({
       if (this._pageActive) {
         this.setData({ loading: false, canLogin: true })
       }
+    }
+  },
+
+  // 将填写的头像/昵称上传并写入用户资料
+  async saveProfile() {
+    let avatarUrl = this.data.avatarUrl
+
+    // 用户选择的头像为本地临时路径，需先上传到云存储得到可持久化的 fileID
+    if (avatarUrl && !avatarUrl.startsWith('cloud://')) {
+      try {
+        const ext = (avatarUrl.match(/\.(\w+)$/) || [])[1] || 'png'
+        const uploadRes = await wx.cloud.uploadFile({
+          cloudPath: `avatars/${app.globalData.openid || Date.now()}_${Date.now()}.${ext}`,
+          filePath: avatarUrl
+        })
+        if (uploadRes.statusCode === 200 && uploadRes.fileID) {
+          avatarUrl = uploadRes.fileID
+        } else {
+          avatarUrl = ''
+        }
+      } catch (uploadErr) {
+        console.error('头像上传失败:', uploadErr)
+        avatarUrl = ''
+      }
+    }
+
+    const updateData = {}
+    const nickName = (this.data.nickName || '').trim()
+    if (nickName) updateData.nickName = nickName
+    if (avatarUrl) updateData.avatarUrl = avatarUrl
+    if (!Object.keys(updateData).length) return
+
+    const res = await wx.cloud.callFunction({ name: 'login', data: updateData })
+    if (res.result?.success && res.result.userInfo) {
+      const merged = { ...app.globalData.userInfo, ...res.result.userInfo }
+      app.globalData.userInfo = merged
+      wx.setStorageSync('userInfo', merged)
     }
   },
 

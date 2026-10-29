@@ -24,6 +24,36 @@
       <text class="panel-desc">保存你的收藏、积分与每日穿搭记录</text>
     </view>
 
+    <view class="profile-fill">
+      <text class="profile-fill-title">个性化资料（选填）</text>
+      <view class="profile-fill-row">
+        <view class="avatar-wrap">
+          <button
+            class="avatar-choose"
+            open-type="chooseAvatar"
+            bind:chooseavatar="onChooseAvatar"
+            hover-class="avatar-choose-hover"
+          >
+            <image
+              class="avatar-preview"
+              src="{{avatarUrl || '/images/icons/user.png'}}"
+              mode="aspectFill"
+            />
+          </button>
+          <view class="avatar-badge">＋</view>
+        </view>
+        <input
+          class="nickname-input"
+          type="nickname"
+          placeholder="点击填写昵称"
+          placeholder-class="nickname-placeholder"
+          value="{{nickName}}"
+          bindinput="onNickNameInput"
+        />
+      </view>
+      <text class="profile-fill-hint">可一键使用微信头像与昵称，也可自行填写自定义资料</text>
+    </view>
+
     <button
       class="wechat-login-button"
       loading="{{loading}}"
