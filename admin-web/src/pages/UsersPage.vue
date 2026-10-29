@@ -80,6 +80,29 @@ async function adjustPoints() {
   }
 }
 
+function statusLabel(status: string) {
+  return status === 'disabled' ? '已停用' : '正常'
+}
+
+function statusType(status: string) {
+  return status === 'disabled' ? 'danger' : 'success'
+}
+
+function formatActiveTime(value: any) {
+  if (!value) return '—'
+  let date: Date
+  if (typeof value === 'string') {
+    date = new Date(value)
+  } else if (value && typeof value === 'object' && '$date' in value) {
+    date = new Date((value as any).$date)
+  } else {
+    date = new Date(value)
+  }
+  if (Number.isNaN(date.getTime())) return '—'
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
 onMounted(load)
 </script>
 
@@ -120,12 +143,16 @@ onMounted(load)
         <el-table-column prop="totalPoints" label="累计积分" width="110" />
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'disabled' ? 'danger' : 'success'">
-              {{ row.status || 'active' }}
+            <el-tag :type="statusType(row.status)">
+              {{ statusLabel(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="lastActiveAt" label="最近活跃" min-width="160" />
+        <el-table-column label="最近活跃" min-width="170">
+          <template #default="{ row }">
+            {{ formatActiveTime(row.lastActiveAt) }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="180">
           <template #default="{ row }">
             <el-button link type="primary">查看记录</el-button>

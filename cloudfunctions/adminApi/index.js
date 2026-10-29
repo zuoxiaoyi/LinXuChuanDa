@@ -876,7 +876,40 @@ async function listUsers(payload) {
     collection.skip((page - 1) * pageSize).limit(pageSize).get(),
     collection.count()
   ])
-  return { list: dataResult.data, page, pageSize, total: countResult.total }
+
+  const rawList = dataResult.data || []
+
+  // 头像在小程序端存的是 cloud:// 文件 ID，浏览器无法直接加载，
+  // 这里批量换取 https 临时地址；换取失败则保留原值，不影响列表展示。
+  const cloudFileIds = rawList
+    .map(u => u.avatarUrl)
+    .filter(id => typeof id === 'string' && id.startsWith('cloud://'))
+  const urlMap = {}
+  if (cloudFileIds.length) {
+    try {
+      const tempRes = await app.getTempFileURL({ fileList: cloudFileIds })
+      for (const item of tempRes.fileList || []) {
+        if (item && item.tempFileURL) urlMap[item.fileID] = item.tempFileURL
+      }
+    } catch (err) {
+      console.error('listUsers getTempFileURL failed:', err)
+    }
+  }
+
+  // 历史用户可能没有 lastActiveAt，用最近更新/创建时间兜底，保证“最近活跃”列有值。
+  const list = rawList.map(u => {
+    const avatarUrl =
+      u.avatarUrl && u.avatarUrl.startsWith('cloud://') && urlMap[u.avatarUrl]
+        ? urlMap[u.avatarUrl]
+        : u.avatarUrl
+    return {
+      ...u,
+      avatarUrl,
+      lastActiveAt: u.lastActiveAt || u.updateTime || u.createTime
+    }
+  })
+
+  return { list, page, pageSize, total: countResult.total }
 }
 
 async function adjustPoints(payload, admin, requestId) {
