@@ -75,13 +75,14 @@ Page({
       wx.setStorageSync('userInfo', userInfo)
       wx.showToast({ title: '登录成功', icon: 'success' })
 
-      // 若用户填写了头像/昵称，则同步到云端（失败不影响登录）
+      // 若用户填写了头像/昵称，则同步到云端（失败不影响登录主流程，但需提示）
       try {
         if (this.data.avatarUrl || this.data.nickName) {
           await this.saveProfile()
         }
       } catch (profileErr) {
         console.error('资料保存失败（不影响登录）:', profileErr)
+        wx.showToast({ title: '资料同步失败，可稍后重试', icon: 'none' })
       }
 
       this.completeLoginNavigation()
@@ -130,11 +131,20 @@ Page({
     if (avatarUrl) updateData.avatarUrl = avatarUrl
     if (!Object.keys(updateData).length) return
 
-    const res = await wx.cloud.callFunction({ name: 'login', data: updateData })
+    let res
+    try {
+      res = await wx.cloud.callFunction({ name: 'login', data: updateData })
+    } catch (callErr) {
+      console.error('头像/昵称上报云端失败:', callErr)
+      throw new Error('头像同步到云端失败')
+    }
     if (res.result?.success && res.result.userInfo) {
       const merged = { ...app.globalData.userInfo, ...res.result.userInfo }
       app.globalData.userInfo = merged
       wx.setStorageSync('userInfo', merged)
+    } else {
+      console.error('头像/昵称上报返回异常:', res && res.result)
+      throw new Error((res && res.result && res.result.message) || '头像同步到云端失败')
     }
   },
 
