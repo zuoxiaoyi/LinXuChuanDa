@@ -4,6 +4,8 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
 const db = cloud.database()
 const { pickByScene } = require('./recommendation-rules')
+// Skyline 下 <image> 不支持 cloud://，返回前统一换成 https 临时链接
+const { resolveImages } = require('./cloud-urls')
 
 const SCENES = [
   { code: 'commute', name: '通勤' },
@@ -101,6 +103,12 @@ async function dailyRecommendation(event) {
     accessories = []
   }
 
+  await Promise.all([
+    resolveImages(bestList),
+    resolveImages(secondList),
+    resolveImages(accessories)
+  ])
+
   return { bestList, secondList, accessories }
 }
 
@@ -115,7 +123,7 @@ async function listOutfits(event) {
     .limit(pageSize)
     .get()
   const totalRes = await db.collection('outfits').where(where).count()
-  const list = result.data.map(normalizeDoc)
+  const list = await resolveImages(result.data.map(normalizeDoc))
 
   return {
     list,

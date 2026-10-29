@@ -6,6 +6,8 @@ const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
 const db = cloud.database()
+// Skyline 下 <image> 不支持 cloud://，返回前统一换成 https 临时链接
+const { resolveImages } = require('./cloud-urls')
 
 exports.main = async (event, context) => {
   const { OPENID } = cloud.getWXContext()
@@ -20,17 +22,8 @@ exports.main = async (event, context) => {
 
     const user = userRes.data[0] || null
 
-    // 小程序头像在小程序端存的是 cloud:// 文件 ID，Skyline 下 <image> 直接渲染
-    // cloud:// 可能失败；这里统一换成 https 临时地址，保证一定能显示。
-    if (user && user.avatarUrl && typeof user.avatarUrl === 'string' && user.avatarUrl.startsWith('cloud://')) {
-      try {
-        const tmpRes = await cloud.getTempFileURL({ fileList: [user.avatarUrl] })
-        const item = (tmpRes.fileList || []).find(f => f.fileID === user.avatarUrl)
-        if (item && item.tempFileURL) user.avatarUrl = item.tempFileURL
-      } catch (urlErr) {
-        console.error('getUserProfile getTempFileURL failed:', urlErr)
-      }
-    }
+    // 头像可能是 cloud:// 文件 ID，Skyline 下 <image> 直接渲染会失败，这里换成 https
+    if (user) await resolveImages(user)
 
     // 查询今日是否已签到
     const checkinRes = await db.collection('checkins').where({
@@ -60,7 +53,7 @@ exports.main = async (event, context) => {
         coverUrl: true,
         tags: true
       }).get()
-      collections = outfitsRes.data
+      collections = await resolveImages(outfitsRes.data)
     }
 
     return {

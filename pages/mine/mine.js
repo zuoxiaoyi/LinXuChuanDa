@@ -1,5 +1,6 @@
 const app = getApp()
 const { isLoggedIn, requireLogin } = require('../../utils/auth')
+const { toDisplayUrl, safePlaceholder } = require('../../utils/cloudfile')
 
 Page({
   data: {
@@ -7,6 +8,8 @@ Page({
     points: 0,
     todayChecked: false,
     todayBonusClaimed: false,
+    streakCount: 0,
+    canMakeUp: false,
     collectedList: [],
     loading: false,
     error: '',
@@ -26,9 +29,17 @@ Page({
 
   onShow() {
     const loggedIn = isLoggedIn()
+    // 本地缓存里的 avatarUrl 可能是 cloud://（Skyline 下 <image> 无法显示），
+    // 首屏先回退到内置占位头像，等 loadUserData 换到 https 临时链接后再刷新
+    const cached = loggedIn ? app.globalData.userInfo : null
     this.setData({
       isLogin: loggedIn,
-      userInfo: loggedIn ? app.globalData.userInfo : null
+      userInfo: cached
+        ? {
+            ...cached,
+            avatarUrl: safePlaceholder(cached.avatarUrl, '/images/icons/user.png')
+          }
+        : null
     })
     if (loggedIn) {
       this.loadUserData()
@@ -56,18 +67,27 @@ Page({
         throw new Error('用户资料不存在')
       }
 
+      // Skyline 下 <image> 不支持 cloud://，统一换成 https 临时链接
+      const avatarUrl = await toDisplayUrl(user.avatarUrl)
+      const displayUser = {
+        ...user,
+        avatarUrl: avatarUrl || '/images/icons/user.png'
+      }
+
       this.setData({
-        userInfo: user,
+        userInfo: displayUser,
         points: user.points || 0,
         todayChecked: !!result.todayChecked,
         todayBonusClaimed: !!result.todayBonusClaimed,
+        streakCount: result.streakCount || 0,
+        canMakeUp: !!result.canMakeUp,
         collectedList: result.collections || []
       })
 
       app.globalData.points = user.points || 0
       app.globalData.userInfo = {
         nickName: user.nickName,
-        avatarUrl: user.avatarUrl
+        avatarUrl: user.avatarUrl // 存原始值（cloud:// 或 http），展示时再转换
       }
       wx.setStorageSync('userInfo', app.globalData.userInfo)
     } catch (err) {
@@ -92,7 +112,8 @@ Page({
         this.setData({
           todayChecked: true,
           todayBonusClaimed: false,
-          points: result.points
+          points: result.points,
+          streakCount: result.streakCount || this.data.streakCount + 1
         })
         app.globalData.points = result.points
         this.showBonusOffer()
@@ -130,10 +151,15 @@ Page({
     this.rewardedVideoAd = wx.createRewardedVideoAd({ adUnitId })
     this.handleAdClose = (res) => {
       if (res === undefined || res.isEnded) {
-        this.claimCheckInBonus()
+        if (this.pendingAdAction === 'makeup') {
+          this.claimMakeUp()
+        } else {
+          this.claimCheckInBonus()
+        }
       } else {
-        wx.showToast({ title: '完整观看广告后才能翻倍', icon: 'none' })
+        wx.showToast({ title: '完整观看广告后才能领取', icon: 'none' })
       }
+      this.pendingAdAction = ''
     }
     this.handleAdError = (err) => {
       console.error('激励视频加载失败:', err)
@@ -153,6 +179,7 @@ Page({
       wx.showToast({ title: '今日翻倍奖励已领取', icon: 'none' })
       return
     }
+    this.pendingAdAction = 'bonus'
     if (!this.rewardedVideoAd) {
       wx.showModal({
         title: '广告位尚未配置',
@@ -213,6 +240,67 @@ Page({
 
   onGoLogin() {
     wx.navigateTo({ url: '/pages/login/login' })
+  },
+
+  async onMakeUpCheckIn() {
+    if (!requireLogin('登录后才能补签')) return
+    if (!this.data.canMakeUp) {
+      wx.showToast({ title: '暂无可补签日期', icon: 'none' })
+      return
+    }
+    if (!this.rewardedVideoAd) {
+      wx.showModal({
+        title: '广告位尚未配置',
+        content: '补签功能已接入，配置微信激励视频广告位 ID 后即可观看并补签昨日。',
+        showCancel: false,
+        confirmText: '知道了'
+      })
+      return
+    }
+    this.pendingAdAction = 'makeup'
+    try {
+      await this.rewardedVideoAd.show()
+    } catch (err) {
+      try {
+        await this.rewardedVideoAd.load()
+        await this.rewardedVideoAd.show()
+      } catch (loadErr) {
+        console.error('激励视频展示失败:', loadErr)
+        wx.showToast({ title: '广告暂不可用，请稍后再试', icon: 'none' })
+      }
+    }
+  },
+
+  async claimMakeUp() {
+    try {
+      wx.showLoading({ title: '补签中' })
+      const res = await wx.cloud.callFunction({
+        name: 'checkIn',
+        data: { action: 'makeUpCheckIn' }
+      })
+      const result = res.result || {}
+      if (!result.success) {
+        wx.showToast({ title: result.msg || '补签失败', icon: 'none' })
+        return
+      }
+      this.setData({
+        points: result.points,
+        streakCount: result.streakCount,
+        canMakeUp: false
+      })
+      app.globalData.points = result.points
+      wx.showModal({
+        title: '补签成功',
+        content: `已补签 ${result.madeUpDate}，连续签到 ${result.streakCount} 天，获得 ${result.addPoints} 积分。`,
+        showCancel: false,
+        confirmText: '好的'
+      })
+    } catch (err) {
+      console.error('补签失败:', err)
+      wx.showToast({ title: '补签失败，请重试', icon: 'none' })
+    } finally {
+      wx.hideLoading()
+    }
   },
 
   onGoDetail(e) {

@@ -30,9 +30,9 @@
       </view>
 
       <view class="header-user" wx:else>
-        <image class="user-avatar" src="{{userInfo.avatarUrl}}" mode="aspectFill" />
+        <image class="user-avatar" src="{{userInfo.avatarUrl || '/images/icons/user.png'}}" mode="aspectFill" />
         <view class="user-copy">
-          <text class="user-name">{{userInfo.nickName || '微信用户'}}</text>
+          <text class="user-name">{{userInfo.nickName || '灵序用户'}}</text>
           <text class="user-id">免费版 · 灵序用户</text>
         </view>
         <text class="logout-link" bindtap="onLogout">退出</text>
@@ -46,7 +46,7 @@
       </view>
       <view class="checkin-copy">
         <text class="checkin-title">每日签到</text>
-        <text class="checkin-subtitle">签到+1，观看广告可抽2～5倍积分</text>
+        <text class="checkin-subtitle">已连续签到 {{streakCount}} 天 · 满3天+1分，满7天+2分</text>
       </view>
       <view class="checkin-actions">
         <van-button
@@ -66,6 +66,13 @@
           看广告翻倍
         </text>
         <text class="bonus-claimed" wx:elif="{{todayBonusClaimed}}">翻倍已领</text>
+        <text
+          class="bonus-entry makeup-entry"
+          wx:if="{{canMakeUp}}"
+          bindtap="onMakeUpCheckIn"
+        >
+          补签昨日
+        </text>
       </view>
     </view>
 

@@ -6,6 +6,8 @@ const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
 const db = cloud.database()
+// Skyline 下 <image> 不支持 cloud://，返回前统一换成 https 临时链接
+const { resolveImages } = require('./cloud-urls')
 
 exports.main = async (event, context) => {
   const { OPENID } = cloud.getWXContext()
@@ -28,7 +30,7 @@ exports.main = async (event, context) => {
     }).get()
 
     return {
-      outfit: outfitRes.data,
+      outfit: await resolveImages(outfitRes.data),
       isCollected: collectRes.data.length > 0
     }
   } catch (err) {
