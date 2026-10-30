@@ -22,7 +22,8 @@
     </view>
 
     <view class="state-container" wx:if="{{loading}}">
-      <van-loading size="46rpx" color="#b08a4d" vertical>加载穿搭方案...</van-loading>
+      <view class="lx-spinner" style="border-top-color:#b08a4d"></view>
+      <text>加载穿搭方案...</text>
     </view>
 
     <view class="state-container" wx:elif="{{error}}">

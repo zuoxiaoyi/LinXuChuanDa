@@ -289,3 +289,34 @@ page {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* 原生签到按钮（替代 Vant van-button） */
+.sign-btn {
+  padding: 0 42rpx;
+  height: 62rpx;
+  line-height: 62rpx;
+  border-radius: 32rpx;
+  color: #fff;
+  font-size: 25rpx;
+  text-align: center;
+  box-shadow: 0 4rpx 12rpx rgba(167, 125, 63, .3);
+}
+.sign-btn--hover {
+  opacity: .85;
+}
+.sign-btn--disabled {
+  box-shadow: none;
+}
+
+/* 原生加载圈（替代 Vant van-loading） */
+.lx-spinner {
+  width: 56rpx;
+  height: 56rpx;
+  border: 5rpx solid rgba(176, 138, 77, .25);
+  border-top-color: #b08a4d;
+  border-radius: 50%;
+  animation: lx-spin .8s linear infinite;
+}
+@keyframes lx-spin {
+  to { transform: rotate(360deg); }
+}

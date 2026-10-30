@@ -24,6 +24,5 @@
   ],
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents",
-  "cloud": true,
-  "__usePrivacyCheck__": false
+  "cloud": true
 }

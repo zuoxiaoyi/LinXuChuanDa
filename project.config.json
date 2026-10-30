@@ -3,14 +3,8 @@
     "es6": true,
     "postcss": true,
     "minified": true,
-    "uglifyFileName": false,
+    "uglifyFileName": true,
     "enhance": true,
-    "packNpmRelationList": [
-      {
-        "packageJsonPath": "./package.json",
-        "miniprogramNpmDistDir": "./"
-      }
-    ],
     "babelSetting": {
       "ignore": [],
       "disablePlugins": [],
@@ -20,7 +14,6 @@
     "minifyWXML": true,
     "compileWorklet": false,
     "uploadWithSourceMap": true,
-    "packNpmManually": false,
     "minifyWXSS": true,
     "localPlugins": false,
     "disableUseStrict": false,
@@ -33,31 +26,122 @@
   "simulatorPluginLibVersion": {},
   "packOptions": {
     "ignore": [
-      { "type": "folder", "value": ".agents" },
-      { "type": "folder", "value": ".codebuddy" },
-      { "type": "folder", "value": ".codex" },
-      { "type": "folder", "value": ".rules" },
-      { "type": "folder", "value": ".superpowers" },
-      { "type": "folder", "value": ".workbuddy" },
-      { "type": "folder", "value": "admin-web" },
-      { "type": "folder", "value": "cloudfunctions" },
-      { "type": "folder", "value": "codebuddy-plugin" },
-      { "type": "folder", "value": "docs" },
-      { "type": "folder", "value": "rules" },
-      { "type": "folder", "value": "tests" },
-      { "type": "folder", "value": "node_modules" },
-      { "type": "folder", "value": "_login_deployed_check" },
-      { "type": "file", "value": ".env.local" },
-      { "type": "file", "value": "小程序项目档案.md" },
-      { "type": "file", "value": ".eslintrc.js" },
-      { "type": "file", "value": ".gitignore" },
-      { "type": "file", "value": ".mcp.json" },
-      { "type": "file", "value": "ARCHITECTURE.md" },
-      { "type": "file", "value": "CODEBUDDY.md" },
-      { "type": "file", "value": "PRODUCT_SPEC.md" },
-      { "type": "file", "value": "README.md" },
-      { "type": "file", "value": "package-lock.json" },
-      { "type": "file", "value": "package.json" }
+      {
+        "type": "folder",
+        "value": ".agents"
+      },
+      {
+        "type": "folder",
+        "value": ".codebuddy"
+      },
+      {
+        "type": "folder",
+        "value": ".codex"
+      },
+      {
+        "type": "folder",
+        "value": ".rules"
+      },
+      {
+        "type": "folder",
+        "value": ".superpowers"
+      },
+      {
+        "type": "folder",
+        "value": ".workbuddy"
+      },
+      {
+        "type": "folder",
+        "value": ".git"
+      },
+      {
+        "type": "folder",
+        "value": "admin-web"
+      },
+      {
+        "type": "folder",
+        "value": "cloudfunctions"
+      },
+      {
+        "type": "folder",
+        "value": "codebuddy-plugin"
+      },
+      {
+        "type": "folder",
+        "value": "docs"
+      },
+      {
+        "type": "folder",
+        "value": "rules"
+      },
+      {
+        "type": "folder",
+        "value": "tests"
+      },
+      {
+        "type": "folder",
+        "value": "node_modules"
+      },
+      {
+        "type": "folder",
+        "value": "_login_deployed_check"
+      },
+      {
+        "type": "file",
+        "value": ".env.local"
+      },
+      {
+        "type": "file",
+        "value": "小程序项目档案.md"
+      },
+      {
+        "type": "file",
+        "value": ".eslintrc.js"
+      },
+      {
+        "type": "file",
+        "value": ".gitignore"
+      },
+      {
+        "type": "file",
+        "value": ".mcp.json"
+      },
+      {
+        "type": "file",
+        "value": "ARCHITECTURE.md"
+      },
+      {
+        "type": "file",
+        "value": "CODEBUDDY.md"
+      },
+      {
+        "type": "file",
+        "value": "PRODUCT_SPEC.md"
+      },
+      {
+        "type": "file",
+        "value": "README.md"
+      },
+      {
+        "type": "file",
+        "value": "package-lock.json"
+      },
+      {
+        "type": "file",
+        "value": "package.json"
+      },
+      {
+        "type": "file",
+        "value": "images/common/bg.png.bak"
+      },
+      {
+        "type": "file",
+        "value": "images/common/index_bg.png.bak"
+      },
+      {
+        "type": "file",
+        "value": "images/common/title.png.bak"
+      }
     ],
     "include": []
   },

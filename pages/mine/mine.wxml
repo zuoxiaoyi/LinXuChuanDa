@@ -49,15 +49,12 @@
         <text class="checkin-subtitle">已连续签到 {{streakCount}} 天 · 满3天+1分，满7天+2分</text>
       </view>
       <view class="checkin-actions">
-        <van-button
-          round
-          size="small"
-          color="{{todayChecked ? '#c8c1b3' : '#a77d3f'}}"
-          disabled="{{todayChecked}}"
-          bind:click="onCheckIn"
-        >
-          {{todayChecked ? '已签到' : (isLogin ? '签到 +1' : '登录签到')}}
-        </van-button>
+        <view
+          class="sign-btn {{todayChecked ? 'sign-btn--disabled' : ''}}"
+          style="background:{{todayChecked ? '#c8c1b3' : '#a77d3f'}}"
+          hover-class="sign-btn--hover"
+          bindtap="onCheckIn"
+        >{{todayChecked ? '已签到' : (isLogin ? '签到 +1' : '登录签到')}}</view>
         <text
           class="bonus-entry"
           wx:if="{{todayChecked && !todayBonusClaimed}}"
@@ -82,7 +79,8 @@
     </view>
 
     <view class="state-card" wx:if="{{loading}}">
-      <van-loading size="42rpx" color="#b08a4d" vertical>正在加载个人资料...</van-loading>
+      <view class="lx-spinner" style="border-top-color:#b08a4d"></view>
+      <text>正在加载个人资料...</text>
     </view>
 
     <view class="state-card" wx:elif="{{error}}">

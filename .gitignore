@@ -12,3 +12,6 @@ admin-web/.env.*.local
 
 # 微信开发者工具个人本地配置（每台机器不同）
 project.private.config.json
+
+# 图片压缩前的原图备份（体积大，仅本地保留，不入库）
+images/**/*.bak

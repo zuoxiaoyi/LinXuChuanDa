@@ -403,3 +403,16 @@ page {
   color: #9d8b70;
   font-size: 22rpx;
 }
+
+/* 原生加载圈（替代 Vant van-loading） */
+.lx-spinner {
+  width: 56rpx;
+  height: 56rpx;
+  border: 5rpx solid rgba(176, 138, 77, .25);
+  border-top-color: #b08a4d;
+  border-radius: 50%;
+  animation: lx-spin .8s linear infinite;
+}
+@keyframes lx-spin {
+  to { transform: rotate(360deg); }
+}
