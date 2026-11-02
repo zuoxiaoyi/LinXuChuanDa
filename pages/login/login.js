@@ -1,5 +1,6 @@
 const app = getApp()
 const { normalizeRedirect } = require('../../utils/login-route')
+const { normalizeAvatar } = require('../../utils/avatar')
 
 // 云环境 ID（与 app.js 保持一致）。极端情况下 onLaunch 的 cloud.init 尚未就绪时用于兜底初始化。
 const CLOUD_ENV = 'cloudbase-d7gr1giub2c847b49'
@@ -139,31 +140,27 @@ Page({
     })
   },
 
+  /**
+   * 规范化头像地址（委托 utils/avatar.normalizeAvatar）。
+   * 关键修复：chooseAvatar 真机返回 http://tmp/ 临时路径，旧逻辑被 https?:// 正则
+   * 当成远程地址原样存库，会话结束后失效导致头像变占位图。新版会强制把临时路径
+   * 上传到云存储得到持久 fileID。
+   */
   // 将填写的头像/昵称上传并写入用户资料
   async saveProfile() {
     let avatarUrl = this.data.avatarUrl
+    const nickName = (this.data.nickName || '').trim()
 
-    // 用户选择的头像为本地临时路径，需先上传到云存储得到可持久化的 fileID
-    if (avatarUrl && !avatarUrl.startsWith('cloud://')) {
-      try {
-        const ext = (avatarUrl.match(/\.(\w+)$/) || [])[1] || 'png'
-        const uploadRes = await wx.cloud.uploadFile({
-          cloudPath: `avatars/${app.globalData.openid || Date.now()}_${Date.now()}.${ext}`,
-          filePath: avatarUrl
-        })
-        if (uploadRes.statusCode === 200 && uploadRes.fileID) {
-          avatarUrl = uploadRes.fileID
-        } else {
-          avatarUrl = ''
-        }
-      } catch (uploadErr) {
-        console.error('头像上传失败:', uploadErr)
-        avatarUrl = ''
-      }
+    // 既没填昵称也没选头像：无需上报
+    if (!nickName && !avatarUrl) return
+
+    // 规范化头像地址：临时路径（http://tmp/、wxfile://）上传云存储得到持久 fileID；
+    // 已存云/远程 https/默认头像分别处理
+    if (avatarUrl) {
+      avatarUrl = await normalizeAvatar(avatarUrl, app.globalData.openid)
     }
 
     const updateData = {}
-    const nickName = (this.data.nickName || '').trim()
     if (nickName) updateData.nickName = nickName
     if (avatarUrl) updateData.avatarUrl = avatarUrl
     if (!Object.keys(updateData).length) return

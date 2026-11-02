@@ -692,9 +692,45 @@ async function publicCalendarRange(payload) {
   ].join('-')
 
   const elementColors = await enabledColorNamesByElement()
+  const dates = validatedDateRange(startDate, endDate)
+
+  // 方案B（2026-11-02）：库优先、算兜底。
+  // 后台「批量生成日历颜色」会把每日建议写入 dailyCalendarRecommendations；
+  // 人工覆盖的记录 generationMode 仍为算法但 manualOverride=true。
+  // 小程序优先读取库中已发布（已生成/已覆盖）的颜色建议；
+  // 未生成或缺失的日期（如后台尚未批量生成的未来日期）才走实时算法补算，
+  // 保证任意日期都有数据、且后台的批量生成/手动改色能真正生效到小程序。
+  let storedMap = new Map()
+  try {
+    const storedRes = await db.collection('dailyCalendarRecommendations')
+      .where({
+        date: command.in(dates),
+        isDeleted: command.neq(true)
+      })
+      .limit(1000)
+      .get()
+    storedMap = new Map((storedRes.data || []).map(doc => [doc.date, doc]))
+  } catch (err) {
+    // 读库失败不阻断主流程，降级为纯实时算法
+    console.error('[publicRange] 读取日历覆盖记录失败，降级为实时算法:', err)
+  }
+
   return {
-    days: validatedDateRange(startDate, endDate)
-      .map(date => buildCalendarRecommendation(date, '2026.1', elementColors))
+    days: dates.map(date => {
+      const stored = storedMap.get(date)
+      if (stored && stored.colorAdvice && stored.calendar) {
+        return {
+          date,
+          calendar: stored.calendar,
+          colorAdvice: stored.colorAdvice,
+          ruleVersion: stored.ruleVersion || '2026.1',
+          generationMode: stored.generationMode || 'algorithm',
+          manualOverride: !!stored.manualOverride,
+          status: stored.status || 'draft'
+        }
+      }
+      return buildCalendarRecommendation(date, '2026.1', elementColors)
+    })
   }
 }
 
@@ -803,6 +839,30 @@ async function generateCalendarRecommendations(payload, admin, requestId) {
     requestId
   )
   return { generated, skipped }
+}
+
+// 定时任务专用：生成指定月份整月日历颜色数据。
+// 复用 generateCalendarRecommendations 的写库逻辑（跳过 manualOverride 记录），
+// 以 system 身份写入，供 calendarAutoGen 定时器调用。
+async function autoGenerateMonth(payload, requestId) {
+  const ruleVersion = requiredString(payload.ruleVersion, '规则版本', 30)
+  const startDate = requiredString(payload.startDate, '开始日期', 10)
+  const endDate = requiredString(payload.endDate, '结束日期', 10)
+  const systemAdmin = { uid: 'system-auto-gen', role: 'system' }
+  const result = await generateCalendarRecommendations(
+    { startDate, endDate, ruleVersion },
+    systemAdmin,
+    requestId
+  )
+  await writeAudit(
+    systemAdmin,
+    'generate.auto',
+    'dailyCalendarRecommendations',
+    '',
+    `${startDate}~${endDate}, generated=${result.generated}`,
+    requestId
+  )
+  return result
 }
 
 async function publishRecommendation(payload, admin, requestId) {
@@ -1135,6 +1195,16 @@ exports.main = async (event = {}, context = {}) => {
   const requestId = context.requestId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   try {
     const action = requiredString(event.action, 'action', 80)
+
+    // 定时任务专用入口：由 calendarAutoGen 在月末触发，生成次月整月数据。
+    // 以 __timer__ 标记校验来源，禁止外部随意调用（不进入管理员鉴权）。
+    if (action === 'calendarRecommendations.autoGenerateMonth') {
+      if (event.__timer__ !== true) {
+        throw new ApiError('FORBIDDEN', '该操作仅限定时任务调用')
+      }
+      return success(await autoGenerateMonth(event.payload || {}, requestId), requestId)
+    }
+
     if (!(action in ACTION_PERMISSIONS)) {
       throw new ApiError('NOT_FOUND', '不支持的后台操作')
     }

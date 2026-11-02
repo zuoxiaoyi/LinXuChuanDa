@@ -10,3 +10,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+// Element Plus 中文语言包（zh-cn.mjs）未携带类型声明，显式声明为模块以消除 TS7016。
+declare module 'element-plus/dist/locale/zh-cn.mjs'

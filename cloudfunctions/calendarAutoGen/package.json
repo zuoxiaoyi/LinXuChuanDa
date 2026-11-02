@@ -1,0 +1,9 @@
+{
+  "name": "calendarAutoGen",
+  "version": "1.0.0",
+  "description": "月末自动生成次月日历颜色数据（定时触发器）",
+  "main": "index.js",
+  "dependencies": {
+    "@cloudbase/node-sdk": "^2.11.0"
+  }
+}

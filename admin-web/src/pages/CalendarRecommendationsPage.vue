@@ -133,6 +133,14 @@ onMounted(load)
 
   <el-dialog v-model="generateVisible" title="生成日历与颜色" width="480px">
     <el-form ref="generateFormRef" :model="generateForm" :rules="generateRules" label-position="top">
+      <el-alert
+        type="warning"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 16px"
+        title="生成后需覆盖到当前月份，小程序端才会读取"
+        description="小程序首页优先读取本表已生成的日期；未覆盖到的日期会自动按算法展示。若要让线上用户看到你在本页生成/修改的首选、次选颜色，请把日期范围覆盖到当前月份（例如 2026-11-01 ~ 2026-11-30）。"
+      />
       <el-form-item label="日期范围" prop="range">
         <el-date-picker
           v-model="generateForm.range"

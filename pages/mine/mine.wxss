@@ -67,6 +67,31 @@ page {
   border-radius: 50%;
 }
 
+/* 头像按钮：重置 button 默认样式，做成可点击的圆形头像容器 */
+.avatar-btn {
+  width: 92rpx;
+  height: 92rpx;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  line-height: normal;
+  overflow: hidden;
+}
+.avatar-btn::after {
+  border: none;
+}
+.avatar-btn--hover {
+  opacity: .85;
+}
+
+.avatar-hint {
+  margin-top: 6rpx;
+  color: #b29a6f;
+  font-size: 19rpx;
+}
+
 .avatar-placeholder {
   display: flex;
   align-items: center;
