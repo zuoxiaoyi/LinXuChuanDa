@@ -114,5 +114,7 @@ function validatePublishMaterial(kind, material = {}) {
 module.exports = {
   normalizeAccessory,
   normalizeOutfit,
-  validatePublishMaterial
+  validatePublishMaterial,
+  dictionaryMap,
+  uniqueCodes
 }

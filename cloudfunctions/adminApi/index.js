@@ -8,7 +8,9 @@ const { DEFAULT_DICTIONARIES } = require('./tag-defaults')
 const {
   normalizeAccessory,
   normalizeOutfit,
-  validatePublishMaterial
+  validatePublishMaterial,
+  dictionaryMap,
+  uniqueCodes
 } = require('./material-rules')
 
 const app = cloudbase.init({
@@ -65,6 +67,7 @@ const ACTION_PERMISSIONS = {
   'outfits.list': 'outfits.read',
   'outfits.get': 'outfits.read',
   'outfits.save': 'outfits.write',
+  'outfits.botUpload': 'outfits.write',
   'outfits.setStatus': 'outfits.publish',
   'outfits.remove': 'outfits.write',
   'accessories.list': 'accessories.read',
@@ -450,6 +453,65 @@ async function saveMaterial(kind, payload, admin, requestId) {
     requestId,
     kind === 'outfit' ? sanitizeOutfit : sanitizeAccessory
   )
+}
+
+// WorkBuddy 自动批量导入单条穿搭：接收图片 base64 + 中文标签名，云端完成
+// 上传云存储拿 fileID、中文名→字典 code 转换、清洗并写入 outfits 集合（草稿态）。
+async function botUploadOutfit(payload = {}, admin, requestId) {
+  const imageBase64 = payload.imageBase64
+  if (!imageBase64) throw new ApiError('BAD_REQUEST', '缺少图片数据 imageBase64')
+  const fileName = payload.fileName || 'image.jpg'
+  const ext = (fileName.match(/\.(\w+)$/) || [])[1] || 'jpg'
+  let buffer
+  try {
+    buffer = Buffer.from(imageBase64, 'base64')
+  } catch (e) {
+    throw new ApiError('BAD_REQUEST', 'imageBase64 不是合法 base64')
+  }
+  if (!buffer.length) throw new ApiError('BAD_REQUEST', 'imageBase64 解码为空')
+
+  const cloudPath = `outfits/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
+  let uploadRes
+  try {
+    uploadRes = await app.uploadFile({ cloudPath, fileContent: buffer })
+  } catch (e) {
+    throw new ApiError('INTERNAL', '云存储上传失败：' + e.message)
+  }
+  const coverUrl = uploadRes && uploadRes.fileID
+  if (!coverUrl) throw new ApiError('INTERNAL', '云存储上传未返回 fileID')
+
+  // 中文标签名 → 字典 code（找不到的标签跳过，不阻断整条记录）
+  const dictionaries = await enabledDictionaries()
+  const map = dictionaryMap(dictionaries)
+  const findByTypeAndName = (type, name) => {
+    const hit = [...map.values()].find(
+      i => i.type === type && i.name === String(name).trim()
+    )
+    return hit ? hit.code : ''
+  }
+  const codesOf = (type, names) =>
+    Array.isArray(names) ? names.map(n => findByTypeAndName(type, n)).filter(Boolean) : []
+
+  const doc = {
+    coverUrl,
+    title: String(payload.title || '').slice(0, 50),
+    description: String(payload.description || payload.title || '').slice(0, 500),
+    primaryColorCodes: codesOf('color', payload.primaryColorNames),
+    accentColorCodes: codesOf('color', payload.accentColorNames),
+    sceneCodes: codesOf('scene', payload.sceneNames),
+    seasonCodes: codesOf('season', payload.seasonNames),
+    weatherCodes: codesOf('weather', payload.weatherNames),
+    temperatureMin: payload.temperatureMin,
+    temperatureMax: payload.temperatureMax,
+    waterproof: Boolean(payload.waterproof),
+    windproof: Boolean(payload.windproof),
+    breathable: Boolean(payload.breathable),
+    priority: payload.priority,
+    inventoryStatus: payload.inventoryStatus || 'available',
+    status: 'draft',
+  }
+
+  return saveDocument('outfits', doc, admin, requestId, sanitizeOutfit)
 }
 
 async function setMaterialStatus(kind, payload, admin, requestId) {
@@ -1119,6 +1181,9 @@ async function route(action, payload, admin, requestId) {
     }
   }
 
+  if (action === 'outfits.botUpload') {
+    return botUploadOutfit(payload, admin, requestId)
+  }
   if (action === 'outfits.save') {
     return saveMaterial('outfit', payload, admin, requestId)
   }
@@ -1215,6 +1280,22 @@ exports.main = async (event = {}, context = {}) => {
 
     if (action === 'content.publicGet') {
       return success(await publicContentGet(event.payload || {}), requestId)
+    }
+
+    // 机器凭证入口（WorkBuddy 自动批量导入等场景）：携带约定 serviceKey 的请求
+    // 直接以 super_admin 身份执行，跳过微信登录校验。密钥来自云函数环境变量 ADMIN_SERVICE_KEY，
+    // 仅本地保存、可随时在控制台/环境变量吊销，不进入代码仓库。
+    const SERVICE_KEY = process.env.ADMIN_SERVICE_KEY || ''
+    if (SERVICE_KEY && event.serviceKey && event.serviceKey === SERVICE_KEY) {
+      const botAdmin = {
+        uid: 'service-bot',
+        displayName: 'WorkBuddy 自动导入',
+        role: 'super_admin',
+        status: 'active',
+        permissions: ['*'],
+      }
+      const data = await route(action, event.payload || {}, botAdmin, requestId)
+      return success(data, requestId)
     }
 
     const uid = resolveUid(event, context)
