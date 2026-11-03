@@ -2,12 +2,13 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { Plus, Search } from '@element-plus/icons-vue'
+import { Plus, Search, Upload } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import MediaField from '@/components/MediaField.vue'
 import { useDictionaries } from '@/composables/useDictionaries'
 import { callAdminApi } from '@/services/admin-api'
-import { resolveCloudFileUrls } from '@/services/media'
+import { resolveCloudFileUrls, uploadAdminImage } from '@/services/media'
+import { parseOutfitFilename, parseCsv, splitTags } from '@/utils/outfitBatch'
 import type { PageResult } from '@/types/api'
 import type { Outfit } from '@/types/domain'
 
@@ -347,6 +348,255 @@ function formatDateTime(value: unknown) {
   return date.toLocaleString('zh-CN', { hour12: false })
 }
 
+// ===================== 批量上传素材 =====================
+const batchUploadVisible = ref(false)
+const uploadMode = ref<'filename' | 'csv'>('filename')
+const batchRows = ref<BatchRow[]>([])
+const batchUploading = ref(false)
+const batchProgress = ref(0)
+const imageInputRef = ref<HTMLInputElement>()
+const csvInputRef = ref<HTMLInputElement>()
+
+interface BatchRow {
+  file: File
+  coverPreview: string
+  title: string
+  description: string
+  sceneNames: string[]
+  primaryColorNames: string[]
+  seasonNames: string[]
+  weatherNames: string[]
+  accentColorNames: string[]
+  temperatureMin: number
+  temperatureMax: number
+  waterproof: boolean
+  windproof: boolean
+  breathable: boolean
+  priority: number
+  inventoryStatus: 'available' | 'unavailable'
+}
+
+function stripExtLocal(name: string): string {
+  return (name || '').replace(/\.[^.]+$/, '')
+}
+
+function openBatchUpload() {
+  batchRows.value = []
+  uploadMode.value = 'filename'
+  batchProgress.value = 0
+  batchUploadVisible.value = true
+}
+
+function makeRowFromFile(file: File): BatchRow {
+  const parsed = parseOutfitFilename(file.name)
+  return {
+    file,
+    coverPreview: URL.createObjectURL(file),
+    title: parsed.title,
+    description: parsed.title,
+    sceneNames: splitTags(parsed.scene),
+    primaryColorNames: splitTags(parsed.primaryColor),
+    seasonNames: splitTags(parsed.season),
+    weatherNames: splitTags(parsed.weather),
+    accentColorNames: [],
+    temperatureMin: 15,
+    temperatureMax: 28,
+    waterproof: false,
+    windproof: false,
+    breathable: false,
+    priority: 0,
+    inventoryStatus: 'available'
+  }
+}
+
+function onFilesPicked(e: Event) {
+  const input = e.target as HTMLInputElement
+  const files = Array.from(input.files || []).filter(f => f.type.startsWith('image/'))
+  if (!files.length) return
+  const seen = new Set(batchRows.value.map(r => `${r.file.name}__${r.file.size}`))
+  const added = files
+    .filter(f => !seen.has(`${f.name}__${f.size}`))
+    .map(makeRowFromFile)
+  if (added.length) batchRows.value = [...batchRows.value, ...added]
+  input.value = '' // 允许再次选择同一文件
+}
+
+function removeRowAt(index: number) {
+  const row = batchRows.value[index]
+  if (row?.coverPreview) URL.revokeObjectURL(row.coverPreview)
+  batchRows.value.splice(index, 1)
+}
+
+function resetBatch() {
+  batchRows.value.forEach(r => r.coverPreview && URL.revokeObjectURL(r.coverPreview))
+  batchRows.value = []
+  uploadMode.value = 'filename'
+}
+
+// 把中文标签名映射成字典 code，并收集无法匹配的标签
+function resolveCodes(type: Parameters<typeof options>[0], names: string[]) {
+  const opts = options(type)
+  const codes: string[] = []
+  const unknown: string[] = []
+  names.forEach(name => {
+    const hit = opts.find(o => o.name === name)
+    if (hit) codes.push(hit.code)
+    else if (name) unknown.push(name)
+  })
+  return { codes, unknown }
+}
+
+// 逐行校验：缺名称 / 标签未匹配 / 温度倒挂
+function rowErrors(row: any): string[] {
+  const errors: string[] = []
+  if (!row.title.trim()) errors.push('缺名称')
+  const map: Array<[Parameters<typeof options>[0], string[], string]> = [
+    ['scene', row.sceneNames, '场景'],
+    ['color', row.primaryColorNames, '主色'],
+    ['season', row.seasonNames, '季节'],
+    ['weather', row.weatherNames, '天气']
+  ]
+  map.forEach(([type, names, label]) => {
+    const { unknown } = resolveCodes(type, names)
+    if (unknown.length) errors.push(`${label}未匹配:${unknown.join('/')}`)
+  })
+  if (
+    Number.isFinite(row.temperatureMin) &&
+    Number.isFinite(row.temperatureMax) &&
+    row.temperatureMin > row.temperatureMax
+  ) {
+    errors.push('最低温>最高温')
+  }
+  return errors
+}
+
+function buildPayload(row: BatchRow, fileID: string) {
+  const scene = resolveCodes('scene', row.sceneNames)
+  const primary = resolveCodes('color', row.primaryColorNames)
+  const accent = resolveCodes('color', row.accentColorNames)
+  const season = resolveCodes('season', row.seasonNames)
+  const weather = resolveCodes('weather', row.weatherNames)
+  return {
+    title: row.title.trim(),
+    description: (row.description || row.title).trim(),
+    coverUrl: fileID,
+    primaryColorCodes: primary.codes,
+    accentColorCodes: accent.codes,
+    sceneCodes: scene.codes,
+    seasonCodes: season.codes,
+    weatherCodes: weather.codes,
+    elementCodes: [],
+    temperatureMin: Number.isFinite(row.temperatureMin) ? row.temperatureMin : 15,
+    temperatureMax: Number.isFinite(row.temperatureMax) ? row.temperatureMax : 28,
+    waterproof: row.waterproof,
+    windproof: row.windproof,
+    breathable: row.breathable,
+    inventoryStatus: row.inventoryStatus,
+    priority: row.priority,
+    status: 'draft'
+  }
+}
+
+async function submitBatch() {
+  const rows = batchRows.value
+  if (!rows.length) {
+    ElMessage.warning('请先选择图片')
+    return
+  }
+  const preErrors = rows.flatMap(r => rowErrors(r))
+  if (preErrors.length) {
+    ElMessage.warning('存在未匹配的标签或缺失名称，请先在预览中修正后再提交')
+    return
+  }
+  batchUploading.value = true
+  batchProgress.value = 0
+  let ok = 0
+  const failed: string[] = []
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]
+    try {
+      const fileID = await uploadAdminImage(row.file, 'outfits')
+      await callAdminApi('outfits.save', buildPayload(row, fileID))
+      ok += 1
+    } catch (err: any) {
+      failed.push(`${row.title || row.file.name}（${err?.message || '失败'}）`)
+    } finally {
+      batchProgress.value = Math.round(((i + 1) / rows.length) * 100)
+    }
+  }
+  batchUploading.value = false
+  if (failed.length) {
+    ElMessage.warning(`批量上传完成：成功 ${ok} 套，失败 ${failed.length} 套 —— ${failed.join('；')}`)
+  } else {
+    ElMessage.success(`批量上传完成，共 ${ok} 套`)
+  }
+  await load()
+  if (!failed.length) batchUploadVisible.value = false
+}
+
+// ----- CSV 模式 -----
+function onCsvPicked(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  file.text().then(applyCsv).catch(() => ElMessage.error('CSV 读取失败'))
+  input.value = ''
+}
+
+function applyCsv(text: string) {
+  const { rows } = parseCsv(text)
+  let matched = 0
+  for (const row of batchRows.value) {
+    const base = stripExtLocal(row.file.name)
+    const match = rows.find(r => {
+      const fn = stripExtLocal(r['文件名'] || r['文件名称'] || '')
+      return fn && fn === base
+    })
+    if (match) {
+      fillRowFromCsv(row, match)
+      matched += 1
+    }
+  }
+  ElMessage.info(`CSV 已应用，匹配到 ${matched} / ${batchRows.value.length} 张图片`)
+}
+
+function fillRowFromCsv(row: BatchRow, data: Record<string, string>) {
+  if (data['穿搭名称']) row.title = data['穿搭名称']
+  if (data['搭配说明']) row.description = data['搭配说明']
+  if (data['场景标签']) row.sceneNames = splitTags(data['场景标签'])
+  if (data['主色']) row.primaryColorNames = splitTags(data['主色'])
+  if (data['辅助色']) row.accentColorNames = splitTags(data['辅助色'])
+  if (data['季节标签']) row.seasonNames = splitTags(data['季节标签'])
+  if (data['天气标签']) row.weatherNames = splitTags(data['天气标签'])
+  if (data['最低温度'] && !Number.isNaN(Number(data['最低温度']))) {
+    row.temperatureMin = Number(data['最低温度'])
+  }
+  if (data['最高温度'] && !Number.isNaN(Number(data['最高温度']))) {
+    row.temperatureMax = Number(data['最高温度'])
+  }
+  if (data['运营优先级'] && !Number.isNaN(Number(data['运营优先级']))) {
+    row.priority = Number(data['运营优先级'])
+  }
+  row.inventoryStatus = /不可用/.test(data['库存状态'] || '') ? 'unavailable' : 'available'
+  row.waterproof = /是|true|1/i.test(data['防水'] || '')
+  row.windproof = /是|true|1/i.test(data['防风'] || '')
+  row.breathable = /是|true|1/i.test(data['透气'] || '')
+}
+
+function downloadTemplate() {
+  const header =
+    '文件名,穿搭名称,搭配说明,场景标签,主色,辅助色,季节标签,天气标签,最低温度,最高温度,防水,防风,透气,运营优先级,库存状态'
+  const sample = '白色连衣裙｜商超｜白｜夏｜晴,白色连衣裙,适合通勤简约风,商超,白,,夏,晴,15,28,否,否,是,0,可用'
+  const content = '﻿' + header + '\n' + sample + '\n'
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = '穿搭批量上传模板.csv'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 onMounted(async () => {
   await loadDictionaries()
   await load()
@@ -360,6 +610,7 @@ onMounted(async () => {
     description="维护可参与算法匹配的穿搭图片、场景、五行、颜色、季节与天气标签。"
   >
     <el-button type="primary" :icon="Plus" @click="openCreate">新增穿搭</el-button>
+    <el-button type="warning" :icon="Upload" @click="openBatchUpload">批量上传</el-button>
   </PageHeader>
 
   <section class="surface">
@@ -570,6 +821,152 @@ onMounted(async () => {
       <el-button type="primary" :loading="batchWorking" @click="applyBatchEdit">应用</el-button>
     </template>
   </el-dialog>
+
+  <el-dialog
+    v-model="batchUploadVisible"
+    title="批量上传穿搭素材"
+    width="980px"
+    top="4vh"
+    :close-on-click-modal="false"
+  >
+    <div v-if="!batchRows.length" class="batch-drop">
+      <el-icon :size="42" color="#c9b79a"><Upload /></el-icon>
+      <p>选择多张穿搭图片（可多选）</p>
+      <p class="batch-tip">
+        文件名格式：<code>穿搭名称｜场景标签｜主色｜季节标签｜天气标签</code><br />
+        例：<code>白色连衣裙｜商超｜白｜夏｜晴.jpg</code>（搭配说明自动等于名称）<br />
+        分隔符用全角「｜」，字段缺失可在下方预览中补。
+      </p>
+      <input ref="imageInputRef" type="file" accept="image/*" multiple hidden @change="onFilesPicked" />
+      <el-button type="primary" @click="imageInputRef?.click()">选择图片</el-button>
+    </div>
+
+    <div v-else>
+      <div class="batch-toolbar">
+        <el-radio-group v-model="uploadMode">
+          <el-radio-button value="filename">按文件名解析</el-radio-button>
+          <el-radio-button value="csv">导入 CSV 模板</el-radio-button>
+        </el-radio-group>
+        <el-button v-if="uploadMode === 'csv'" @click="downloadTemplate">下载模板</el-button>
+        <span class="batch-count">共 {{ batchRows.length }} 张</span>
+        <span class="toolbar-spacer" />
+        <input
+          v-if="uploadMode === 'csv'"
+          ref="csvInputRef"
+          type="file"
+          accept=".csv,text/csv"
+          hidden
+          @change="onCsvPicked"
+        />
+        <el-button v-if="uploadMode === 'csv'" @click="csvInputRef?.click()">选择 CSV</el-button>
+        <el-button @click="resetBatch">重新选择图片</el-button>
+      </div>
+
+      <p v-if="uploadMode === 'csv'" class="batch-tip">
+        下载模板后，按「文件名」列（不含扩展名）与所选图片一一对应，填好其余字段再导入；未匹配到的图片保持原有解析值。
+      </p>
+
+      <el-table :data="batchRows" max-height="430" border>
+        <el-table-column label="封面" width="80">
+          <template #default="{ row }">
+            <img v-if="row.coverPreview" :src="row.coverPreview" class="batch-thumb" alt="" />
+          </template>
+        </el-table-column>
+        <el-table-column label="穿搭名称" width="150">
+          <template #default="{ row }">
+            <el-input v-model="row.title" size="small" />
+          </template>
+        </el-table-column>
+        <el-table-column label="搭配说明" min-width="160">
+          <template #default="{ row }">
+            <el-input v-model="row.description" size="small" />
+          </template>
+        </el-table-column>
+        <el-table-column label="场景" min-width="120">
+          <template #default="{ row }">
+            <el-select v-model="row.sceneNames" multiple filterable size="small" style="width: 100%">
+              <el-option v-for="o in options('scene')" :key="o.code" :label="o.name" :value="o.name" />
+            </el-select>
+          </template>
+        </el-table-column>
+        <el-table-column label="主色" min-width="120">
+          <template #default="{ row }">
+            <el-select v-model="row.primaryColorNames" multiple filterable size="small" style="width: 100%">
+              <el-option v-for="o in options('color')" :key="o.code" :label="o.name" :value="o.name" />
+            </el-select>
+          </template>
+        </el-table-column>
+        <el-table-column label="季节" min-width="110">
+          <template #default="{ row }">
+            <el-select v-model="row.seasonNames" multiple filterable size="small" style="width: 100%">
+              <el-option v-for="o in options('season')" :key="o.code" :label="o.name" :value="o.name" />
+            </el-select>
+          </template>
+        </el-table-column>
+        <el-table-column label="天气" min-width="110">
+          <template #default="{ row }">
+            <el-select v-model="row.weatherNames" multiple filterable size="small" style="width: 100%">
+              <el-option v-for="o in options('weather')" :key="o.code" :label="o.name" :value="o.name" />
+            </el-select>
+          </template>
+        </el-table-column>
+        <el-table-column v-if="uploadMode === 'csv'" label="辅助色" min-width="120">
+          <template #default="{ row }">
+            <el-select v-model="row.accentColorNames" multiple filterable size="small" style="width: 100%">
+              <el-option v-for="o in options('color')" :key="o.code" :label="o.name" :value="o.name" />
+            </el-select>
+          </template>
+        </el-table-column>
+        <el-table-column v-if="uploadMode === 'csv'" label="温度" width="190">
+          <template #default="{ row }">
+            <div class="two-column">
+              <el-input-number v-model="row.temperatureMin" :min="-30" :max="50" size="small" controls-position="right" />
+              <el-input-number v-model="row.temperatureMax" :min="-30" :max="50" size="small" controls-position="right" />
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column v-if="uploadMode === 'csv'" label="能力" width="160">
+          <template #default="{ row }">
+            <el-checkbox v-model="row.waterproof">防水</el-checkbox>
+            <el-checkbox v-model="row.windproof">防风</el-checkbox>
+            <el-checkbox v-model="row.breathable">透气</el-checkbox>
+          </template>
+        </el-table-column>
+        <el-table-column v-if="uploadMode === 'csv'" label="优先级" width="110">
+          <template #default="{ row }">
+            <el-input-number v-model="row.priority" :min="-100" :max="100" size="small" controls-position="right" />
+          </template>
+        </el-table-column>
+        <el-table-column label="校验" min-width="160">
+          <template #default="{ row }">
+            <div v-if="!rowErrors(row).length" class="ok-tag">可上传</div>
+            <el-tooltip v-else :content="rowErrors(row).join('；')">
+              <div class="err-tag">{{ rowErrors(row).join('；') }}</div>
+            </el-tooltip>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="70" fixed="right">
+          <template #default="{ row, $index }">
+            <el-button link type="danger" @click="removeRowAt($index)">移除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <el-progress v-if="batchUploading" :percentage="batchProgress" class="batch-progress" />
+    </div>
+
+    <template #footer>
+      <el-button @click="batchUploadVisible = false">关闭</el-button>
+      <el-button
+        type="primary"
+        :loading="batchUploading"
+        :disabled="!batchRows.length"
+        @click="submitBatch"
+      >
+        提交 {{ batchRows.length }} 套
+      </el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <style scoped>
@@ -629,5 +1026,73 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
+}
+
+.batch-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 36px 16px;
+  border: 1px dashed #d8c9ad;
+  border-radius: 12px;
+  background: #fbf7ef;
+  text-align: center;
+  color: #8a7e6d;
+}
+
+.batch-tip {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.8;
+  color: #8a7e6d;
+}
+
+.batch-tip code {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #f0e8d8;
+  color: #6f5b34;
+  font-size: 12px;
+}
+
+.batch-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+.batch-count {
+  color: #8a7e6d;
+  font-size: 12px;
+}
+
+.batch-thumb {
+  width: 54px;
+  height: 66px;
+  border-radius: 4px 10px 10px;
+  object-fit: cover;
+  background: #eee6d9;
+}
+
+.ok-tag {
+  color: #2fa36b;
+  font-size: 12px;
+}
+
+.err-tag {
+  color: #d9534f;
+  font-size: 12px;
+  cursor: help;
+}
+
+.batch-progress {
+  margin-top: 12px;
 }
 </style>
