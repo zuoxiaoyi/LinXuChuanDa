@@ -30,13 +30,10 @@
       </view>
 
       <view class="header-user" wx:else>
-        <button class="avatar-btn" open-type="chooseAvatar" bind:chooseavatar="onChooseAvatar" hover-class="avatar-btn--hover">
-          <image class="user-avatar" src="{{userInfo.avatarUrl || '/images/icons/user.png'}}" mode="aspectFill" binderror="onAvatarError" />
-        </button>
+        <image class="user-avatar" src="{{userInfo.avatarUrl || '/images/icons/user.png'}}" mode="aspectFill" binderror="onAvatarError" />
         <view class="user-copy">
           <text class="user-name">{{userInfo.nickName || '灵序用户'}}</text>
           <text class="user-id">免费版 · 灵序用户</text>
-          <text class="avatar-hint">点击头像可更换</text>
         </view>
         <text class="logout-link" bindtap="onLogout">退出</text>
       </view>

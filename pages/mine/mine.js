@@ -1,7 +1,6 @@
 const app = getApp()
 const { isLoggedIn, requireLogin } = require('../../utils/auth')
 const { toDisplayUrl, safePlaceholder, isDefaultWxAvatar } = require('../../utils/cloudfile')
-const { normalizeAvatar } = require('../../utils/avatar')
 
 Page({
   data: {
@@ -250,34 +249,6 @@ Page({
   onAvatarError() {
     if (this.data.userInfo && this.data.userInfo.avatarUrl) {
       this.setData({ 'userInfo.avatarUrl': '/images/icons/user.png' })
-    }
-  },
-
-  // 我的页点击头像：重新选择微信头像并即时保存到云端（无需重新登录即可设置/更换）
-  async onChooseAvatar(e) {
-    const rawUrl = e.detail && e.detail.avatarUrl
-    if (!rawUrl) return
-    wx.showLoading({ title: '更新头像中' })
-    try {
-      const fileID = await normalizeAvatar(rawUrl, app.globalData.openid)
-      if (!fileID) throw new Error('头像上传失败')
-
-      // 复用 login 云函数的 upsertUser 持久化 avatarUrl（已部署，支持仅传 avatarUrl 更新，不影响昵称）
-      const res = await wx.cloud.callFunction({ name: 'login', data: { avatarUrl: fileID } })
-      if (!(res.result && res.result.success)) throw new Error('云端返回异常')
-
-      const displayUrl = await toDisplayUrl(fileID)
-      const newUser = { ...this.data.userInfo, avatarUrl: displayUrl || '/images/icons/user.png' }
-      this.setData({ userInfo: newUser })
-      // 全局与本地缓存存原始 cloud:// fileID，展示时再转 https（与 loadUserData 保持一致）
-      app.globalData.userInfo = { ...app.globalData.userInfo, avatarUrl: fileID }
-      wx.setStorageSync('userInfo', app.globalData.userInfo)
-      wx.hideLoading()
-      wx.showToast({ title: '头像已更新', icon: 'success' })
-    } catch (err) {
-      console.error('更新头像失败:', err)
-      wx.hideLoading()
-      wx.showToast({ title: '头像更新失败，请重试', icon: 'none' })
     }
   },
 
