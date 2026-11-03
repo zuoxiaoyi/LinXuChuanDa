@@ -33,7 +33,11 @@ async function ensureCloudReady() {
 
 async function uploadOnce(cloudPath, filePath) {
   const res = await wx.cloud.uploadFile({ cloudPath, filePath })
-  if (res && res.statusCode === 200 && res.fileID) return res.fileID
+  // ⚠️ 关键：wx.cloud.uploadFile 成功时 statusCode 常为 204（对象存储 PUT 语义），
+  // errMsg 以 ":ok" 结尾，并携带 fileID。绝不能按 statusCode===200 判断，否则会把
+  // 成功上传误判为失败 → 触发多余复制/重试，临时文件回收后第三次上传必然 file path invalid
+  // （这正是头像始终保存失败的根因）。正确判据：有 fileID 且 errMsg 含 ":ok"。
+  if (res && res.fileID && (res.errMsg || '').indexOf(':ok') > -1) return res.fileID
   throw new Error('uploadFile 返回异常: ' + JSON.stringify(res))
 }
 
