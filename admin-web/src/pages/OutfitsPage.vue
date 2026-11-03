@@ -835,10 +835,12 @@ onMounted(async () => {
       <p class="batch-tip">
         文件名格式：<code>穿搭名称｜场景标签｜主色｜季节标签｜天气标签</code><br />
         例：<code>白色连衣裙｜商超｜白｜夏｜晴.jpg</code>（搭配说明自动等于名称）<br />
-        分隔符用全角「｜」，字段缺失可在下方预览中补。
+        分隔符用全角「｜」，字段缺失可在下方预览中补；<br />
+        如需填写<b>搭配说明 / 温度 / 防水防风</b>等更多字段，点上方「下载 CSV 模板」填好后连同图片一起导入。
       </p>
       <input ref="imageInputRef" type="file" accept="image/*" multiple hidden @change="onFilesPicked" />
       <el-button type="primary" @click="imageInputRef?.click()">选择图片</el-button>
+      <el-button @click="downloadTemplate">下载 CSV 模板</el-button>
     </div>
 
     <div v-else>
@@ -847,7 +849,7 @@ onMounted(async () => {
           <el-radio-button value="filename">按文件名解析</el-radio-button>
           <el-radio-button value="csv">导入 CSV 模板</el-radio-button>
         </el-radio-group>
-        <el-button v-if="uploadMode === 'csv'" @click="downloadTemplate">下载模板</el-button>
+        <el-button @click="downloadTemplate">下载模板</el-button>
         <span class="batch-count">共 {{ batchRows.length }} 张</span>
         <span class="toolbar-spacer" />
         <input
