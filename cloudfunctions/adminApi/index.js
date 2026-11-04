@@ -181,39 +181,19 @@ function firstDocument(result) {
   return result?.data || null
 }
 
-function resolveUid(event, context) {
-  // 方式1：CloudBase Web SDK 调用时平台自动注入 userInfo
-  if (event?.userInfo?.uid) {
-    console.log('resolveUid: from event.userInfo.uid =', event.userInfo.uid)
-    return event.userInfo.uid
+// 身份解析（路径①）：仅信任 CloudBase Web SDK 在「已登录会话」下调 callFunction 时，
+// 平台自动注入到 event.userInfo.uid 的后台管理员身份。
+// 机器凭证（serviceKey，路径②）由 exports.main 中单独处理，二者构成本函数唯一的两条
+// 合法身份来源。其余方式（旧 node-sdk auth / TCB_UUID 环境变量 / event.uid 直传）一律
+// 不认 —— 缺失即明确抛出 UNAUTHENTICATED，杜绝"脆弱兜底误放行"。
+function resolveUid(event) {
+  const uid = event && event.userInfo && event.userInfo.uid
+  if (uid) {
+    console.log('resolveUid: from event.userInfo.uid =', uid)
+    return uid
   }
-
-  // 方式2：@cloudbase/node-sdk 的 auth API
-  try {
-    const userInfo = app.auth().getUserInfo()
-    console.log('resolveUid: auth.getUserInfo =', JSON.stringify(userInfo))
-    if (userInfo?.uid) return userInfo.uid
-  } catch (e) {
-    console.log('resolveUid: auth.getUserInfo failed:', e.message)
-  }
-
-  // 方式3：SCF 上下文中的环境变量
-  try {
-    if (process.env?.TCB_UUID) {
-      console.log('resolveUid: from TCB_UUID =', process.env.TCB_UUID)
-      return process.env.TCB_UUID
-    }
-  } catch {}
-
-  // 方式4：event 直接传 uid
-  if (event?.uid) {
-    console.log('resolveUid: from event.uid =', event.uid)
-    return event.uid
-  }
-
-  console.log('resolveUid: ALL METHODS FAILED, returning empty string')
-  console.log('event keys:', Object.keys(event || {}))
-  return ''
+  // 未注入有效身份：明确拒绝（不再静默返回 '' 或走脆弱兜底）
+  throw new ApiError('UNAUTHENTICATED', '管理员身份未注入（请先在后台登录）')
 }
 
 async function getAdmin(uid) {
@@ -1298,7 +1278,9 @@ exports.main = async (event = {}, context = {}) => {
       return success(data, requestId)
     }
 
-    const uid = resolveUid(event, context)
+    // 路径②（机器凭证，见下方 SERVICE_KEY 分支）已在上方面短路返回；
+    // 此处走路径①：解析 Web SDK 注入的管理员身份。
+    const uid = resolveUid(event)
 
     // auth.me 必须返回经过管理员名单校验的管理员身份。
     // 普通 CloudBase 用户不是后台管理员，不能包装成成功响应。
