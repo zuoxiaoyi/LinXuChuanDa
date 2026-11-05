@@ -181,18 +181,28 @@ function firstDocument(result) {
   return result?.data || null
 }
 
-// 身份解析（路径①）：仅信任 CloudBase Web SDK 在「已登录会话」下调 callFunction 时，
-// 平台自动注入到 event.userInfo.uid 的后台管理员身份。
-// 机器凭证（serviceKey，路径②）由 exports.main 中单独处理，二者构成本函数唯一的两条
-// 合法身份来源。其余方式（旧 node-sdk auth / TCB_UUID 环境变量 / event.uid 直传）一律
-// 不认 —— 缺失即明确抛出 UNAUTHENTICATED，杜绝"脆弱兜底误放行"。
+// 身份解析：仅信任两条"由平台签名、调用者无法伪造"的来源：
+//   路径①：Web SDK 在「已登录会话」下调 callFunction 时，平台注入的 event.userInfo.uid
+//   路径②：node-sdk 的 app.auth().getUserInfo() —— 解析平台签名的调用者上下文，返回真实调用者 uid
+// 机器凭证（serviceKey，路径③）由 exports.main 单独短路放行。
+// 明确不认的危险来源（客户端可伪造）：旧 node-sdk auth 直取 / TCB_UUID 环境变量 / event.uid 直传。
+// 两条合法来源都缺失时，显式抛 UNAUTHENTICATED，杜绝静默放行。
 function resolveUid(event) {
-  const uid = event && event.userInfo && event.userInfo.uid
-  if (uid) {
-    console.log('resolveUid: from event.userInfo.uid =', uid)
-    return uid
+  // 路径①：平台注入的登录用户身份
+  const injected = event && event.userInfo && event.userInfo.uid
+  if (injected) {
+    console.log('resolveUid: from event.userInfo.uid =', injected)
+    return injected
   }
-  // 未注入有效身份：明确拒绝（不再静默返回 '' 或走脆弱兜底）
+  // 路径②：node-sdk 取当前调用者身份（安全：来自平台签名上下文，不可伪造）
+  try {
+    const info = app.auth().getUserInfo()
+    console.log('resolveUid: getUserInfo =', JSON.stringify(info))
+    if (info && info.uid) return info.uid
+  } catch (e) {
+    console.log('resolveUid: getUserInfo failed:', e.message)
+  }
+  // 未注入有效身份：明确拒绝
   throw new ApiError('UNAUTHENTICATED', '管理员身份未注入（请先在后台登录）')
 }
 
