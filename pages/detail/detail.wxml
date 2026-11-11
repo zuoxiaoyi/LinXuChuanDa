@@ -243,7 +243,7 @@
   >
     <swiper-item wx:for="{{previewList}}" wx:key="_id">
       <view class="preview-slide">
-        <image class="preview-photo" src="{{item.coverUrl}}" mode="aspectFit" />
+        <image class="preview-photo" src="{{item.coverUrl}}" mode="aspectFit" show-menu-by-longpress="{{true}}" />
         <scroll-view class="preview-meta" scroll-y show-scrollbar="{{false}}" catchtap="noop">
           <view class="preview-meta-head">
             <text class="preview-rank">{{item.rank}}</text>
