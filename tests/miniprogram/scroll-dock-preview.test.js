@@ -25,7 +25,42 @@ test('「我的」页按滚动阈值浮出刘海卡片，头部固定不动', ()
 
   assert.match(mineWxss, /\.sticky-dock\.is-visible\s*\{[^}]*opacity:\s*1/s)
   assert.match(mineWxss, /\.section-heading\.is-docked\s*\{[^}]*visibility:\s*hidden/s)
-  assert.match(mineWxss, /\.notch-card\s*\{[^}]*border-radius:\s*999rpx/s)
+})
+
+test('刘海满宽、无圆角、整块不透明深色，收藏图不会透眼', () => {
+  assert.match(mineWxss, /\.sticky-dock\s*\{[^}]*left:\s*0/s)
+  assert.match(mineWxss, /\.sticky-dock\s*\{[^}]*right:\s*0/s)
+  assert.match(mineWxss, /\.sticky-dock\s*\{[^}]*border-radius:\s*0/s)
+  assert.match(mineWxss, /\.sticky-dock\s*\{[^}]*background:\s*linear-gradient\(180deg, #463522/s)
+  assert.match(mineWxss, /\.sticky-dock\s*\{[^}]*box-shadow/s)
+  // 两行共用同一块不透明底板：无半透明背景、无 blur、无圆角、无卡片间隙
+  assert.match(mineWxss, /\.notch-card\s*\{[^}]*border-radius:\s*0/s)
+  assert.match(mineWxss, /\.notch-card\s*\{[^}]*background:\s*transparent/s)
+  assert.match(mineWxss, /\.dock-heading\s*\{[^}]*border-radius:\s*0/s)
+  assert.doesNotMatch(mineWxss, /\.notch-card\s*\{[^}]*backdrop-filter/s)
+  assert.doesNotMatch(mineWxss, /\.notch-card\s*\{[^}]*rgba\(255, 252, 243/s)
+  assert.doesNotMatch(mineWxss, /\.dock-heading\s*\{[^}]*border-radius:\s*18rpx/s)
+  assert.match(mineWxss, /\.notch-name\s*\{[^}]*color:\s*#f6ecd8/s)
+})
+
+test('单套穿搭详情：底部信息卡固定，图片占剩余空间并补阴影', () => {
+  assert.match(detailWxml, /class="state-container single-container"/)
+  assert.match(detailWxml, /class="single-figure"/)
+  assert.match(detailWxml, /class="single-ground"/)
+  assert.match(detailWxml, /class="single-info"[^>]*scroll-y/s)
+  assert.match(detailWxml, /class="single-cover"[\s\S]*?mode="aspectFit"/)
+  assert.doesNotMatch(detailWxml, /mode="widthFix"/)
+  // 占位图用显式 wx:if，避免插入脚底阴影打断 wx:if/wx:else 条件链
+  assert.match(detailWxml, /class="image-placeholder empty-outfit single-empty" wx:if="\{\{!singleOutfit\.coverUrl\}\}"/)
+
+  assert.match(detailWxss, /\.single-container\s*\{[^}]*flex:\s*1/s)
+  assert.match(detailWxss, /\.single-cover\s*\{[^}]*flex:\s*1/s)
+  assert.match(detailWxss, /\.single-cover\s*\{[^}]*drop-shadow/s)
+  assert.match(detailWxss, /\.single-ground\s*\{[^}]*radial-gradient/s)
+  assert.match(detailWxss, /\.single-info\s*\{[^}]*height:\s*42vh/s)
+  assert.match(detailWxss, /\.single-info\s*\{[^}]*box-shadow:\s*0 -14rpx/s)
+  // 覆盖六图星标的绝对定位，收藏按钮不再飘走
+  assert.match(detailWxss, /\.collect-bar \.collect-button\s*\{[^}]*position:\s*static/s)
 })
 
 test('刘海阈值用 SelectorQuery 量锚点绝对位置，且带反向滞回', () => {

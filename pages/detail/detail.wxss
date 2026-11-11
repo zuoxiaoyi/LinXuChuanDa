@@ -365,26 +365,81 @@ page {
   border: none;
 }
 
-.single-outfit {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 16rpx 8rpx 8rpx;
+/* ===== 单套穿搭详情：底部信息卡固定，剩余空间全部留给图片 ===== */
+.single-container {
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
 }
 
+.single-outfit {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0;
+}
+
+.single-figure {
+  flex: 1;
+  min-height: 240rpx;
+  display: flex;
+  flex-direction: column;
+  padding: 12rpx 10rpx 0;
+  overflow: hidden;
+}
+
+/* aspectFit + flex 分配高度，人物头脚完整；drop-shadow 做人物轮廓投影 */
 .single-cover {
+  flex: 1;
+  min-height: 0;
   width: 100%;
-  border-radius: 20rpx;
-  background: #efe6d4;
-  box-shadow: 0 10rpx 26rpx rgba(100, 78, 47, .12);
+  height: 0;
+  border-radius: 0;
+  background: transparent;
+  filter: drop-shadow(0 12rpx 16rpx rgba(74, 54, 28, .28));
+}
+
+.single-empty {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 脚底椭圆落地阴影，与每日推荐六图一致 */
+.single-ground {
+  flex: none;
+  width: 42%;
+  height: 22rpx;
+  margin: 0 auto 8rpx;
+  border-radius: 50%;
+  background: rgba(96, 74, 42, .1);
+  background: radial-gradient(ellipse at center, rgba(96, 74, 42, .34) 0%, rgba(96, 74, 42, .14) 48%, rgba(96, 74, 42, 0) 80%);
+}
+
+/* 底部信息卡固定高度 + 顶部圆角 + 向上投影，形成压在图片上的层次 */
+.single-info {
+  flex: none;
+  box-sizing: border-box;
+  height: 42vh;
+  max-height: 42vh;
+  margin-top: 10rpx;
+  padding: 26rpx 28rpx 24rpx;
+  border-radius: 28rpx 28rpx 0 0;
+  background: rgba(255, 253, 247, .97);
+  box-shadow: 0 -14rpx 34rpx rgba(84, 62, 34, .2), 0 -2rpx 0 rgba(185, 156, 107, .2);
 }
 
 .single-title {
-  margin-top: 26rpx;
+  display: block;
+  margin-top: 0;
   color: #5d4728;
   font-size: 34rpx;
   font-weight: 600;
   letter-spacing: 1rpx;
+  text-align: center;
 }
 
 .single-tags {
@@ -404,7 +459,21 @@ page {
 }
 
 .collect-bar {
-  margin-top: 26rpx;
+  display: flex;
+  justify-content: center;
+  margin-top: 18rpx;
+}
+
+/* 覆盖每日推荐六图用的绝对定位星标，避免单套页收藏按钮飘走 */
+.collect-bar .collect-button {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: 10rpx 28rpx;
+  border: 1rpx solid rgba(185, 156, 107, .4);
+  border-radius: 32rpx;
+  background: #fdf7ea;
+  color: #8b6630;
 }
 
 .collect-text {
@@ -415,10 +484,10 @@ page {
 
 .single-description {
   display: block;
-  margin-top: 30rpx;
+  margin-top: 24rpx;
   padding: 22rpx 24rpx;
   border-radius: 18rpx;
-  background: rgba(255, 253, 247, .9);
+  background: rgba(248, 241, 228, .92);
   color: #6f6555;
   font-size: 25rpx;
   line-height: 1.8;
@@ -426,7 +495,7 @@ page {
 
 .single-items {
   width: 100%;
-  margin-top: 28rpx;
+  margin-top: 24rpx;
 }
 
 .single-items-heading {
@@ -443,7 +512,7 @@ page {
   justify-content: space-between;
   padding: 18rpx 22rpx;
   border-radius: 14rpx;
-  background: rgba(255, 253, 247, .82);
+  background: rgba(248, 241, 228, .9);
   box-shadow: 0 4rpx 12rpx rgba(100, 78, 47, .06);
 }
 

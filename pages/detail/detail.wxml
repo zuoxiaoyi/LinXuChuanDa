@@ -38,51 +38,56 @@
       <button class="retry-button" bindtap="onRetry">重新加载</button>
     </view>
 
-    <view class="state-container" wx:elif="{{singleMode}}">
+    <view class="state-container single-container" wx:elif="{{singleMode}}">
       <view class="single-outfit">
-        <image
-          wx:if="{{singleOutfit.coverUrl}}"
-          class="single-cover"
-          src="{{singleOutfit.coverUrl}}"
-          mode="widthFix"
-          lazy-load
-          data-id="{{singleOutfit._id || outfitId}}"
-          bindtap="onOpenPreview"
-        />
-        <view class="image-placeholder empty-outfit" wx:else>
-          <image class="image-placeholder-icon" src="/images/icons/image.png" mode="aspectFit" />
-          <text>暂无图片</text>
-        </view>
-
-        <text class="single-title">{{singleOutfit.title}}</text>
-
-        <view class="single-tags" wx:if="{{singleOutfit.tags.length}}">
-          <text class="single-tag" wx:for="{{singleOutfit.tags}}" wx:key="*this">{{item}}</text>
-        </view>
-
-        <view
-          class="collect-bar"
-          catchtap="onToggleCollectSingle"
-        >
-          <view class="collect-button {{singleCollected ? 'is-collected' : ''}}">
-            <image
-              class="collect-icon"
-              src="{{singleCollected ? '/images/icons/star.png' : '/images/icons/star-outline.png'}}"
-              mode="aspectFit"
-            />
-            <text class="collect-text">{{singleCollected ? '已收藏' : '收藏'}}</text>
+        <!-- 图片区吃掉剩余空间，aspectFit 保证人物头脚完整 -->
+        <view class="single-figure">
+          <image
+            wx:if="{{singleOutfit.coverUrl}}"
+            class="single-cover"
+            src="{{singleOutfit.coverUrl}}"
+            mode="aspectFit"
+            lazy-load
+            data-id="{{singleOutfit._id || outfitId}}"
+            bindtap="onOpenPreview"
+          />
+          <!-- 不用 wx:else：中间还要放脚底阴影，避免条件链被插入节点打断 -->
+          <view class="image-placeholder empty-outfit single-empty" wx:if="{{!singleOutfit.coverUrl}}">
+            <image class="image-placeholder-icon" src="/images/icons/image.png" mode="aspectFit" />
+            <text>暂无图片</text>
           </view>
+          <view class="single-ground"></view>
         </view>
 
-        <text class="single-description" wx:if="{{singleOutfit.description}}">{{singleOutfit.description}}</text>
+        <!-- 底部信息卡固定在底部，内容过多时卡内局部滚动 -->
+        <scroll-view class="single-info" scroll-y enhanced show-scrollbar="{{false}}" bounces="{{false}}">
+          <text class="single-title">{{singleOutfit.title}}</text>
 
-        <view class="single-items" wx:if="{{singleOutfit.items.length}}">
-          <text class="single-items-heading">单品清单</text>
-          <view class="single-item" wx:for="{{singleOutfit.items}}" wx:key="name">
-            <text class="single-item-name">{{item.name}}</text>
-            <text class="single-item-brand" wx:if="{{item.brand}}">{{item.brand}}</text>
+          <view class="single-tags" wx:if="{{singleOutfit.tags.length}}">
+            <text class="single-tag" wx:for="{{singleOutfit.tags}}" wx:key="*this">{{item}}</text>
           </view>
-        </view>
+
+          <view class="collect-bar" catchtap="onToggleCollectSingle">
+            <view class="collect-button {{singleCollected ? 'is-collected' : ''}}">
+              <image
+                class="collect-icon"
+                src="{{singleCollected ? '/images/icons/star.png' : '/images/icons/star-outline.png'}}"
+                mode="aspectFit"
+              />
+              <text class="collect-text">{{singleCollected ? '已收藏' : '收藏'}}</text>
+            </view>
+          </view>
+
+          <text class="single-description" wx:if="{{singleOutfit.description}}">{{singleOutfit.description}}</text>
+
+          <view class="single-items" wx:if="{{singleOutfit.items.length}}">
+            <text class="single-items-heading">单品清单</text>
+            <view class="single-item" wx:for="{{singleOutfit.items}}" wx:key="name">
+              <text class="single-item-name">{{item.name}}</text>
+              <text class="single-item-brand" wx:if="{{item.brand}}">{{item.brand}}</text>
+            </view>
+          </view>
+        </scroll-view>
       </view>
     </view>
 
