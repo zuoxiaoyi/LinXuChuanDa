@@ -14,12 +14,53 @@ Page({
     loading: false,
     error: '',
     isLogin: false,
+    dockVisible: false,
+    dockThreshold: 0,
+    dockTop: 0,
     introText: '灵序穿搭，融合东方天时五行智慧与现代穿搭美学，以风水能量调和个人磁场，用专业色彩美学塑造独特气质。团队汇聚二十年资深服装设计师、深耕传统文化的985硕士、专业技术工程师与新锐运营人才，致力于让每一套穿搭，都成为你提升运势、绽放气场的能量载体。'
   },
 
   onLoad() {
     this.initRewardedVideoAd()
   },
+
+  onReady() {
+    this.measureDock()
+  },
+
+  // 量「积分卡底边」在 scroll-view 内容坐标系里的绝对位置。
+  // boundingClientRect 相对视口，需加上当前 scrollTop、减去滚动容器视口 top，
+  // 这样得到的阈值与机型、rpx 换算无关。
+  measureDock() {
+    const query = wx.createSelectorQuery().in(this)
+    query.select('#dockAnchor').boundingClientRect()
+    query.select('.page-scroll').boundingClientRect()
+    query.select('.page-scroll').scrollOffset()
+    query.exec((res) => {
+      const [anchor, scroller, offset] = res || []
+      if (!anchor || !scroller || !offset) return
+      const threshold = Math.max(0, offset.scrollTop + anchor.top - scroller.top)
+      this.setData({
+        dockThreshold: threshold,
+        dockTop: scroller.top
+      })
+    })
+  },
+
+  // 滚过阈值 → 刘海浮出；反向滚回阈值下方（留 16px 滞回防抖）→ 刘海消失。
+  // 头部固定后收藏内容仍由同一个 scroll-view 滚动，即「局部滚动」的效果，
+  // 不引入嵌套 scroll-view，避免小程序滚动手势互相抢锁。
+  onScroll(e) {
+    const scrollTop = e.detail.scrollTop || 0
+    const threshold = this.data.dockThreshold
+    if (!threshold) return
+    const visible = this.data.dockVisible
+      ? scrollTop >= threshold - 16
+      : scrollTop >= threshold
+    if (visible !== this.data.dockVisible) this.setData({ dockVisible: visible })
+  },
+
+  noop() {},
 
   onUnload() {
     if (!this.rewardedVideoAd) return
@@ -51,8 +92,9 @@ Page({
         todayBonusClaimed: false,
         collectedList: [],
         loading: false,
-        error: ''
-      })
+        error: '',
+        dockVisible: false
+      }, () => this.measureDock())
     }
   },
 
@@ -97,7 +139,8 @@ Page({
       console.error('加载用户数据失败:', err)
       this.setData({ error: '个人资料加载失败，请稍后重试' })
     } finally {
-      this.setData({ loading: false })
+      // 收藏列表/loading 状态会改变文档高度，重量一次锚点，避免阈值失准
+      this.setData({ loading: false }, () => this.measureDock())
     }
   },
 

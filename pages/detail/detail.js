@@ -181,10 +181,17 @@ Page({
     windowStartDate: '',
     unlockedDates: [],
     switching: false,
-    unlocking: false
+    unlocking: false,
+    // 相册层避开微信原生胶囊：全部由 getMenuButtonBoundingClientRect 动态算，单位 px
+    previewCapsuleTop: 0,
+    previewCapsuleHeight: 32,
+    previewCloseTop: 0,
+    previewCloseRight: 16,
+    previewTopPadding: 0
   },
 
   onLoad(options) {
+    this.initPreviewSafeArea()
     const id = (options.id || '').trim()
     if (id) {
       const redirectUrl = `/pages/detail/detail?id=${encodeURIComponent(id)}`
@@ -413,6 +420,38 @@ Page({
       return
     }
     this.loadDailyOutfits()
+  },
+
+  // 微信胶囊属原生层，永远盖在 webview 内容之上，关闭键必须放到它正下方。
+  // 用实时胶囊矩形定位，兼容刘海屏 / Android / 开发者工具的不同状态栏高度。
+  initPreviewSafeArea() {
+    let rect = null
+    try {
+      if (wx.getMenuButtonBoundingClientRect) rect = wx.getMenuButtonBoundingClientRect()
+    } catch (err) {
+      console.warn('[preview] 胶囊信息获取失败，改用状态栏兜底', err)
+    }
+    const info = (wx.getWindowInfo && wx.getWindowInfo()) || wx.getSystemInfoSync() || {}
+    const statusBar = info.statusBarHeight || 20
+
+    if (rect && rect.bottom > 0 && rect.right > 0) {
+      const width = info.windowWidth || 375
+      this.setData({
+        previewCapsuleTop: rect.top,
+        previewCapsuleHeight: rect.height,
+        previewCloseTop: rect.bottom + 12,
+        previewCloseRight: Math.max(12, Math.round(width - rect.right)),
+        previewTopPadding: Math.round(rect.bottom + 10)
+      })
+    } else {
+      this.setData({
+        previewCapsuleTop: statusBar + 6,
+        previewCapsuleHeight: 32,
+        previewCloseTop: statusBar + 6 + 32 + 12,
+        previewCloseRight: 16,
+        previewTopPadding: statusBar + 6 + 32 + 10
+      })
+    }
   },
 
   onOpenPreview(e) {

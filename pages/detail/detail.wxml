@@ -228,22 +228,42 @@
 </view>
 </scroll-view>
 
-<view class="preview-layer" wx:if="{{previewVisible}}" catchtap="onClosePreview">
-  <view class="preview-topbar" catchtap="noop">
+<view
+  class="preview-layer"
+  wx:if="{{previewVisible}}"
+  style="padding-top:{{previewTopPadding}}px"
+  catchtap="onClosePreview"
+>
+  <!-- 计数与微信胶囊同高；关闭键放到胶囊正下方，避开原生胶囊层 -->
+  <view
+    class="preview-topbar"
+    style="top:{{previewCapsuleTop}}px;height:{{previewCapsuleHeight}}px"
+    catchtap="noop"
+  >
     <text class="preview-counter">{{previewIndex + 1}} / {{previewList.length}}</text>
-    <view class="preview-close" catchtap="onClosePreview">✕</view>
   </view>
+  <view
+    class="preview-close"
+    style="top:{{previewCloseTop}}px;right:{{previewCloseRight}}px"
+    catchtap="onClosePreview"
+  >✕</view>
 
+  <!-- 不拦截 swiper 的 tap：点击图片本身冒泡到 preview-layer 直接关闭 -->
   <swiper
     class="preview-swiper"
     current="{{previewIndex}}"
     bindchange="onPreviewChange"
     duration="220"
-    catchtap="noop"
   >
     <swiper-item wx:for="{{previewList}}" wx:key="_id">
       <view class="preview-slide">
-        <image class="preview-photo" src="{{item.coverUrl}}" mode="aspectFit" show-menu-by-longpress="{{true}}" />
+        <image
+          class="preview-photo"
+          src="{{item.coverUrl}}"
+          mode="aspectFit"
+          show-menu-by-longpress="{{true}}"
+          catchtap="onClosePreview"
+        />
         <scroll-view class="preview-meta" scroll-y show-scrollbar="{{false}}" catchtap="noop">
           <view class="preview-meta-head">
             <text class="preview-rank">{{item.rank}}</text>
@@ -258,10 +278,9 @@
     </swiper-item>
   </swiper>
 
-  <view class="preview-nav" catchtap="noop">
-    <view class="preview-arrow {{previewIndex === 0 ? 'is-disabled' : ''}}" catchtap="onPreviewPrev">‹</view>
-    <view class="preview-arrow {{previewIndex === previewList.length - 1 ? 'is-disabled' : ''}}" catchtap="onPreviewNext">›</view>
-  </view>
+  <!-- 左右箭头独立绝对定位，不覆盖中间图片区，保证点图可关闭 -->
+  <view class="preview-arrow preview-arrow--left {{previewIndex === 0 ? 'is-disabled' : ''}}" catchtap="onPreviewPrev">‹</view>
+  <view class="preview-arrow preview-arrow--right {{previewIndex === previewList.length - 1 ? 'is-disabled' : ''}}" catchtap="onPreviewNext">›</view>
 </view>
 
 <bottom-nav current=""></bottom-nav>

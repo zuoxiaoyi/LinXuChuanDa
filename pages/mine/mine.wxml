@@ -12,6 +12,7 @@
   bounces="{{false}}"
   show-scrollbar="{{false}}"
   enable-back-to-top
+  bindscroll="onScroll"
 >
 <view class="mine-container">
   <image class="paper-bg" src="/images/common/bg.png" mode="aspectFill" />
@@ -73,6 +74,9 @@
       </view>
     </view>
 
+    <!-- 吸顶锚点：积分卡片底边。滚过它即代表头像卡 + 积分卡完全离屏 -->
+    <view id="dockAnchor" class="dock-anchor" />
+
     <view class="intro-card">
       <text class="card-title">灵序穿搭简介</text>
       <text class="intro-text">{{introText}}</text>
@@ -90,7 +94,7 @@
     </view>
 
     <view class="collection-section" wx:else>
-      <view class="section-heading">
+      <view class="section-heading {{dockVisible ? 'is-docked' : ''}}">
         <text class="card-title">我的收藏</text>
         <text class="collection-count">{{collectedList.length}} 套</text>
       </view>
@@ -122,5 +126,29 @@
   </view>
 </view>
 </scroll-view>
+
+<!-- 滚动吸顶刘海：头像/积分卡离屏后浮出，收藏内容在其下继续滚动 -->
+<view class="sticky-dock {{dockVisible ? 'is-visible' : ''}}" style="top:{{dockTop}}px" catchtap="noop">
+  <view class="notch-card">
+    <image
+      class="notch-avatar"
+      src="{{userInfo.avatarUrl || '/images/icons/user.png'}}"
+      mode="aspectFill"
+      binderror="onAvatarError"
+    />
+    <view class="notch-user">
+      <text class="notch-name">{{userInfo.nickName || '灵序用户'}}</text>
+      <text class="notch-tag">免费版 · 灵序用户</text>
+    </view>
+    <view class="notch-points">
+      <text class="notch-points-num">{{points}}</text>
+      <text class="notch-points-label">积分</text>
+    </view>
+  </view>
+  <view class="dock-heading">
+    <text class="dock-title">我的收藏</text>
+    <text class="dock-count">{{collectedList.length}} 套</text>
+  </view>
+</view>
 
 <bottom-nav current="mine"></bottom-nav>

@@ -484,16 +484,18 @@ page {
   z-index: 9999;
   display: flex;
   flex-direction: column;
-  background: rgba(28, 23, 16, .94);
+  box-sizing: border-box;
+  background: rgba(22, 18, 13, .96);
 }
 
+/* 计数与胶囊同高，关闭键在其正下方；top / right 由 JS 按胶囊矩形动态注入 */
 .preview-topbar {
-  flex: none;
-  height: 96rpx;
-  padding: 0 32rpx;
+  position: absolute;
+  left: 32rpx;
+  right: 32rpx;
+  z-index: 2;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   color: #f6ecd8;
   font-size: 26rpx;
 }
@@ -503,13 +505,17 @@ page {
 }
 
 .preview-close {
-  width: 60rpx;
-  height: 60rpx;
+  position: absolute;
+  z-index: 3;
+  width: 64rpx;
+  height: 64rpx;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 1rpx solid rgba(246, 236, 216, .22);
   border-radius: 50%;
-  background: rgba(255, 255, 255, .12);
+  background: rgba(246, 236, 216, .16);
+  color: #f6ecd8;
   font-size: 30rpx;
 }
 
@@ -533,14 +539,17 @@ page {
   width: 100%;
 }
 
+/* 暗色玻璃属性卡：与预览底色融合，替代原来刺眼的纯白块 */
 .preview-meta {
   flex: none;
   max-height: 300rpx;
   box-sizing: border-box;
   margin: 12rpx 0 8rpx;
   padding: 22rpx 24rpx 24rpx;
+  border: 1rpx solid rgba(246, 236, 216, .14);
   border-radius: 20rpx;
-  background: rgba(255, 253, 247, .96);
+  background: rgba(58, 49, 37, .72);
+  backdrop-filter: blur(16rpx);
 }
 
 .preview-meta-head {
@@ -553,13 +562,13 @@ page {
   flex: none;
   padding: 5rpx 16rpx;
   border-radius: 18rpx;
-  background: #e9d5ae;
-  color: #6d5025;
+  background: rgba(201, 166, 102, .26);
+  color: #f2ddb6;
   font-size: 21rpx;
 }
 
 .preview-title {
-  color: #5d4728;
+  color: #f6ecd8;
   font-size: 30rpx;
   font-weight: 600;
 }
@@ -574,41 +583,46 @@ page {
 .preview-badge {
   padding: 7rpx 18rpx;
   border-radius: 22rpx;
-  background: #f1e8d7;
-  color: #806a49;
+  background: rgba(246, 236, 216, .1);
+  color: #e8dcc3;
   font-size: 22rpx;
 }
 
 .preview-desc {
   display: block;
   margin-top: 16rpx;
-  color: #6f6555;
+  color: rgba(246, 236, 216, .7);
   font-size: 23rpx;
   line-height: 1.7;
 }
 
-.preview-nav {
-  flex: none;
-  height: 112rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 90rpx;
-}
-
+/* 左右箭头独立贴在图片两侧，不铺满整行，保证点图片区域可关闭预览 */
 .preview-arrow {
-  width: 82rpx;
-  height: 82rpx;
+  position: absolute;
+  top: 44%;
+  z-index: 4;
+  width: 72rpx;
+  height: 72rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1rpx solid rgba(246, 236, 216, .36);
+  transform: translateY(-50%);
+  border: 1rpx solid rgba(246, 236, 216, .28);
   border-radius: 50%;
+  background: rgba(18, 14, 10, .42);
   color: #f6ecd8;
-  font-size: 50rpx;
+  font-size: 46rpx;
   line-height: 1;
 }
 
+.preview-arrow--left {
+  left: 18rpx;
+}
+
+.preview-arrow--right {
+  right: 18rpx;
+}
+
 .preview-arrow.is-disabled {
-  opacity: .3;
+  opacity: .25;
 }
