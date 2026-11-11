@@ -90,6 +90,72 @@ function toSceneColumns(list, sceneNames, showSceneName) {
   }))
 }
 
+// 与首页 buildDateList 保持一致：前 3 天免费，后 4 天需解锁
+const FREE_DAYS = 3
+const MAX_DATE_INDEX = 6
+
+const SEASON_NAMES = {
+  spring: '春', summer: '夏', autumn: '秋', winter: '冬',
+  chun: '春', xia: '夏', qiu: '秋', dong: '冬',
+  春: '春', 夏: '夏', 秋: '秋', 冬: '冬'
+}
+
+const WEATHER_NAMES = {
+  sunny: '晴', cloudy: '多云', overcast: '阴', rainy: '雨', rain: '雨',
+  snowy: '雪', snow: '雪', windy: '风', foggy: '雾', haze: '霾',
+  晴: '晴', 多云: '多云', 阴: '阴', 雨: '雨', 雪: '雪', 风: '风',
+  qing: '晴', duoyun: '多云', yin: '阴', yu: '雨', xue: '雪', feng: '风'
+}
+
+function codeNames(value, dict) {
+  return toArray(value)
+    .map(code => dict[String(code).trim()] || '')
+    .filter(Boolean)
+}
+
+// 相册属性标签：只展示能稳妥转成中文的字段，取不到就跳过，不把原始 code 暴露给用户
+function buildBadges(outfit) {
+  const badges = []
+  const push = (label, value) => {
+    if (value) badges.push(`${label} · ${value}`)
+  }
+  if (outfit.sceneName) push('场景', outfit.sceneName)
+  const primary = toColorBadges(outfit.primaryColorCodes || outfit.primaryColors).map(item => item.name)
+  const secondary = toColorBadges(outfit.secondaryColorCodes || outfit.secondaryColors).map(item => item.name)
+  if (primary.length) push('主色', primary.join('、'))
+  if (secondary.length) push('辅助色', secondary.join('、'))
+  const seasons = codeNames(outfit.seasonCodes || outfit.seasons, SEASON_NAMES)
+  if (seasons.length) push('季节', seasons.join('、'))
+  const weathers = codeNames(outfit.weatherCodes || outfit.weathers, WEATHER_NAMES)
+  if (weathers.length) push('天气', weathers.join('、'))
+  const tempMin = outfit.temperatureMin
+  const tempMax = outfit.temperatureMax
+  if (tempMin != null && tempMin !== '' && tempMax != null && tempMax !== ''
+    && Number.isFinite(Number(tempMin)) && Number.isFinite(Number(tempMax))) {
+    push('适温', `${Number(tempMin)}~${Number(tempMax)}℃`)
+  }
+  toArray(outfit.tags).forEach(tag => badges.push(String(tag)))
+  return [...new Set(badges)].slice(0, 8)
+}
+
+function toPreviewItem(outfit, rank) {
+  return {
+    _id: outfit._id || outfit.coverUrl,
+    coverUrl: outfit.coverUrl,
+    rank,
+    displayTitle: outfit.title || `${outfit.sceneName || ''}穿搭`,
+    badges: buildBadges(outfit),
+    description: outfit.description || ''
+  }
+}
+
+function buildPreviewList(bestList, secondList) {
+  return [
+    ...bestList.filter(item => item && item.coverUrl).map(item => toPreviewItem(item, '最佳')),
+    ...secondList.filter(item => item && item.coverUrl).map(item => toPreviewItem(item, '次佳'))
+  ]
+}
+
 Page({
   data: {
     singleMode: false,
@@ -108,7 +174,14 @@ Page({
     accessories: [],
     collectingId: '',
     loading: true,
-    error: ''
+    error: '',
+    previewVisible: false,
+    previewIndex: 0,
+    previewList: [],
+    windowStartDate: '',
+    unlockedDates: [],
+    switching: false,
+    unlocking: false
   },
 
   onLoad(options) {
@@ -133,14 +206,12 @@ Page({
       return
     }
 
-    const date = new Date()
-    date.setDate(date.getDate() + dateIndex)
     this.setData({
       dateIndex,
-      dateKey: formatDate(date),
-      dateText: `${date.getMonth() + 1}月${date.getDate()}日 星期${WEEKDAYS[date.getDay()]}`
+      windowStartDate: formatDate(new Date())
     })
-    this.loadDailyOutfits()
+    this.initRewardedVideoAd()
+    this.switchToDate(dateIndex)
   },
 
   async loadSingleOutfit(id) {
@@ -157,7 +228,11 @@ Page({
       }
       this.setData({
         singleOutfit: result.outfit,
-        singleCollected: !!result.isCollected
+        singleCollected: !!result.isCollected,
+        previewList: result.outfit?.coverUrl
+          ? [toPreviewItem({ ...result.outfit, _id: result.outfit._id || id }, '已收藏')]
+          : [],
+        previewIndex: 0
       })
     } catch (err) {
       console.error('加载穿搭详情失败:', err)
@@ -273,7 +348,9 @@ Page({
         secondList,
         bestColumns: toSceneColumns(bestList, sceneNames, true),
         secondColumns: toSceneColumns(secondList, sceneNames, false),
-        accessories: Array.isArray(outfitRes.result?.accessories) ? outfitRes.result.accessories : []
+        accessories: Array.isArray(outfitRes.result?.accessories) ? outfitRes.result.accessories : [],
+        previewList: buildPreviewList(bestList, secondList),
+        previewIndex: 0
       })
     } catch (err) {
       console.error('加载每日穿搭详情失败:', err)
@@ -338,8 +415,193 @@ Page({
     this.loadDailyOutfits()
   },
 
-  onPreviewImage(e) {
-    const url = e.currentTarget.dataset.url
-    if (url) wx.previewImage({ current: url, urls: [url] })
+  onOpenPreview(e) {
+    const id = e.currentTarget.dataset.id
+    const list = this.data.previewList
+    if (!list.length) return
+    const found = list.findIndex(item => item._id === id)
+    this.setData({
+      previewVisible: true,
+      previewIndex: found >= 0 ? found : 0
+    })
+  },
+
+  onPreviewChange(e) {
+    this.setData({ previewIndex: e.detail.current })
+  },
+
+  onPreviewPrev() {
+    if (this.data.previewIndex <= 0) return
+    this.setData({ previewIndex: this.data.previewIndex - 1 })
+  },
+
+  onPreviewNext() {
+    if (this.data.previewIndex >= this.data.previewList.length - 1) return
+    this.setData({ previewIndex: this.data.previewIndex + 1 })
+  },
+
+  onClosePreview() {
+    this.setData({ previewVisible: false })
+  },
+
+  // 阻止预览层内部点击冒泡到遮罩（否则点属性面板会误关）
+  noop() {},
+
+  onUnload() {
+    if (!this.rewardedVideoAd) return
+    if (this.handleAdClose) this.rewardedVideoAd.offClose(this.handleAdClose)
+    if (this.handleAdError) this.rewardedVideoAd.offError(this.handleAdError)
+  },
+
+  initRewardedVideoAd() {
+    const adUnitId = getApp().globalData.rewardedVideoAdUnitId
+    if (!adUnitId || !wx.createRewardedVideoAd) return
+    this.rewardedVideoAd = wx.createRewardedVideoAd({ adUnitId })
+    this.handleAdClose = res => {
+      if (res?.isEnded) {
+        this.completeAdUnlock()
+        return
+      }
+      wx.showToast({ title: '完整观看后才能解锁', icon: 'none' })
+    }
+    this.handleAdError = () => {
+      wx.showToast({ title: '广告暂不可用', icon: 'none' })
+    }
+    this.rewardedVideoAd.onClose(this.handleAdClose)
+    this.rewardedVideoAd.onError(this.handleAdError)
+  },
+
+  refreshUnlockStatus() {
+    const windowStart = this.data.windowStartDate
+    if (!windowStart || !isLoggedIn()) return Promise.resolve([])
+    return wx.cloud.callFunction({
+      name: 'unlockOutfit',
+      data: { action: 'getWeekStatus', windowStart }
+    }).then(res => {
+      if (!res.result?.success) return this.data.unlockedDates || []
+      const unlockedDates = res.result.unlockedDates || []
+      this.setData({ unlockedDates })
+      return unlockedDates
+    }).catch(() => this.data.unlockedDates || [])
+  },
+
+  dateForIndex(index) {
+    const [year, month, day] = this.data.windowStartDate.split('-').map(Number)
+    const date = new Date(year, month - 1, day)
+    date.setDate(date.getDate() + index)
+    return date
+  },
+
+  isDateLocked(index, dateKey) {
+    return index >= FREE_DAYS && !(this.data.unlockedDates || []).includes(dateKey)
+  },
+
+  async switchToDate(index) {
+    if (this.data.switching) return
+    if (index < 0 || index > MAX_DATE_INDEX) return
+    this.setData({ switching: true })
+    try {
+      await this.refreshUnlockStatus()
+      const date = this.dateForIndex(index)
+      const dateKey = formatDate(date)
+      if (this.isDateLocked(index, dateKey)) {
+        this.promptUnlock(index)
+        return
+      }
+      this.applyDateAndLoad(index, date, dateKey)
+    } finally {
+      this.setData({ switching: false })
+    }
+  },
+
+  applyDateAndLoad(index, date, dateKey) {
+    this.setData({
+      dateIndex: index,
+      dateKey,
+      dateText: `${date.getMonth() + 1}月${date.getDate()}日 星期${WEEKDAYS[date.getDay()]}`,
+      previewVisible: false,
+      previewIndex: 0,
+      previewList: [],
+      error: ''
+    })
+    this.loadDailyOutfits()
+  },
+
+  onPrevDay() {
+    if (this.data.dateIndex <= 0) {
+      wx.showToast({ title: '已经是窗口第一天', icon: 'none' })
+      return
+    }
+    this.switchToDate(this.data.dateIndex - 1)
+  },
+
+  onNextDay() {
+    if (this.data.dateIndex >= MAX_DATE_INDEX) {
+      wx.showToast({ title: '已是本周最后一天', icon: 'none' })
+      return
+    }
+    this.switchToDate(this.data.dateIndex + 1)
+  },
+
+  promptUnlock(index) {
+    if (!isLoggedIn()) {
+      goToLogin(`/pages/detail/detail?dateIndex=${index}`)
+      return
+    }
+    wx.showModal({
+      title: '解锁未来四天',
+      content: this.rewardedVideoAd
+        ? '完整观看一次激励视频后，可永久解锁本周后四天穿搭。'
+        : '当前版本限时开放，点击后可永久解锁本周后四天穿搭。',
+      confirmText: this.rewardedVideoAd ? '看广告解锁' : '立即解锁',
+      success: res => {
+        if (res.confirm) this.showUnlockAd(index)
+      }
+    })
+  },
+
+  showUnlockAd(index) {
+    this.pendingUnlockIndex = index
+    if (!this.rewardedVideoAd) {
+      this.freeUnlockWeek()
+      return
+    }
+    this.rewardedVideoAd.show().catch(() => {
+      this.rewardedVideoAd.load()
+        .then(() => this.rewardedVideoAd.show())
+        .catch(() => wx.showToast({ title: '广告加载失败', icon: 'none' }))
+    })
+  },
+
+  freeUnlockWeek() {
+    this.completeAdUnlock(`dev-free-unlock-${Date.now()}`)
+  },
+
+  completeAdUnlock(adEventId) {
+    if (this.data.unlocking) return
+    const windowStart = this.data.windowStartDate
+    if (!windowStart) return
+    this.setData({ unlocking: true })
+    wx.cloud.callFunction({
+      name: 'unlockOutfit',
+      data: {
+        action: 'adUnlockWeek',
+        windowStart,
+        adEventId: adEventId || `${windowStart}-${Date.now()}`
+      }
+    }).then(res => {
+      if (!res.result?.success) throw new Error(res.result?.msg || '解锁失败')
+      wx.showToast({ title: '已解锁本周后四天', icon: 'success' })
+      const target = Number.isInteger(this.pendingUnlockIndex)
+        ? this.pendingUnlockIndex
+        : this.data.dateIndex
+      this.pendingUnlockIndex = null
+      return this.switchToDate(target)
+    }).catch(error => {
+      wx.showToast({ title: error.message || '解锁失败', icon: 'none' })
+    }).finally(() => {
+      this.pendingUnlockIndex = null
+      this.setData({ unlocking: false })
+    })
   }
 })

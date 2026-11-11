@@ -275,9 +275,9 @@ page {
 
 .collection-img {
   width: 100%;
-  height: 300rpx;
+  height: 420rpx;
   display: block;
-  background: #eee8dc;
+  background: linear-gradient(180deg, #fdfaf3 0%, #f3ead9 100%);
 }
 
 .collection-title {

@@ -136,6 +136,10 @@
       },
       {
         "type": "file",
+        "value": "images/common/index_bg.png"
+      },
+      {
+        "type": "file",
         "value": "images/common/index_bg.png.bak"
       },
       {

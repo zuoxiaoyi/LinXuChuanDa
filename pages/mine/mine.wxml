@@ -114,7 +114,7 @@
           data-id="{{item._id}}"
           bindtap="onGoDetail"
         >
-          <image class="collection-img" src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
+          <image class="collection-img" src="{{item.coverUrl}}" mode="aspectFit" lazy-load />
           <text class="collection-title">{{item.title}}</text>
         </view>
       </view>

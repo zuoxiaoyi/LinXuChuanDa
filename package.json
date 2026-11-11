@@ -4,7 +4,7 @@
   "description": "基于云开发 + CloudBase AI ToolKit 构建的项目",
   "main": ".eslintrc.js",
   "scripts": {
-    "test": "node --test tests/miniprogram"
+    "test": "node --test \"tests/miniprogram/*.test.js\""
   },
   "keywords": [],
   "author": "",

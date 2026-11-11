@@ -14,11 +14,17 @@
   enable-back-to-top
 >
 <view class="detail-page">
-  <image class="detail-bg" src="/images/common/index_bg.png" mode="aspectFill" />
+  <image class="detail-bg" src="/images/common/index_bg.webp" mode="aspectFill" />
   <view class="detail-content">
     <view class="date-heading">
-      <text>{{singleMode ? '穿搭详情' : dateText}}</text>
-      <text class="date-subtitle">{{singleMode ? '已收藏的单套穿搭' : '今日场景穿搭'}}</text>
+      <view class="date-heading-text">
+        <text>{{singleMode ? '穿搭详情' : dateText}}</text>
+        <text class="date-subtitle">{{singleMode ? '已收藏的单套穿搭' : '今日场景穿搭'}}</text>
+      </view>
+      <view class="date-nav" wx:if="{{!singleMode}}">
+        <view class="date-nav-btn {{dateIndex <= 0 ? 'is-disabled' : ''}}" catchtap="onPrevDay">‹</view>
+        <view class="date-nav-btn {{dateIndex >= 6 ? 'is-disabled' : ''}}" catchtap="onNextDay">›</view>
+      </view>
     </view>
 
     <view class="state-container" wx:if="{{loading}}">
@@ -40,8 +46,8 @@
           src="{{singleOutfit.coverUrl}}"
           mode="widthFix"
           lazy-load
-          data-url="{{singleOutfit.coverUrl}}"
-          bindtap="onPreviewImage"
+          data-id="{{singleOutfit._id || outfitId}}"
+          bindtap="onOpenPreview"
         />
         <view class="image-placeholder empty-outfit" wx:else>
           <image class="image-placeholder-icon" src="/images/icons/image.png" mode="aspectFit" />
@@ -111,15 +117,17 @@
           <view class="outfit-grid">
             <view class="outfit-card" wx:for="{{bestColumns}}" wx:key="sceneName">
               <text class="scene-name" wx:if="{{item.showSceneName}}">{{item.sceneName}}</text>
-              <image
-                class="outfit-image"
-                wx:if="{{item.item && item.item.coverUrl}}"
-                src="{{item.item.coverUrl}}"
-                mode="aspectFit"
-                lazy-load
-                data-url="{{item.item.coverUrl}}"
-                bindtap="onPreviewImage"
-              />
+              <view class="outfit-figure" wx:if="{{item.item && item.item.coverUrl}}">
+                <image
+                  class="outfit-image"
+                  src="{{item.item.coverUrl}}"
+                  mode="aspectFit"
+                  lazy-load
+                  data-id="{{item.item._id}}"
+                  bindtap="onOpenPreview"
+                />
+                <view class="outfit-ground"></view>
+              </view>
               <view class="image-placeholder empty-outfit" wx:else>
                 <image class="image-placeholder-icon" src="/images/icons/image.png" mode="aspectFit" />
                 <text>未创建</text>
@@ -166,15 +174,17 @@
           <view class="outfit-grid">
             <view class="outfit-card" wx:for="{{secondColumns}}" wx:key="sceneName">
               <text class="scene-name" wx:if="{{item.showSceneName}}">{{item.sceneName}}</text>
-              <image
-                class="outfit-image"
-                wx:if="{{item.item && item.item.coverUrl}}"
-                src="{{item.item.coverUrl}}"
-                mode="aspectFit"
-                lazy-load
-                data-url="{{item.item.coverUrl}}"
-                bindtap="onPreviewImage"
-              />
+              <view class="outfit-figure" wx:if="{{item.item && item.item.coverUrl}}">
+                <image
+                  class="outfit-image"
+                  src="{{item.item.coverUrl}}"
+                  mode="aspectFit"
+                  lazy-load
+                  data-id="{{item.item._id}}"
+                  bindtap="onOpenPreview"
+                />
+                <view class="outfit-ground"></view>
+              </view>
               <view class="image-placeholder empty-outfit" wx:else>
                 <image class="image-placeholder-icon" src="/images/icons/image.png" mode="aspectFit" />
                 <text>未创建</text>
@@ -217,5 +227,41 @@
   </view>
 </view>
 </scroll-view>
+
+<view class="preview-layer" wx:if="{{previewVisible}}" catchtap="onClosePreview">
+  <view class="preview-topbar" catchtap="noop">
+    <text class="preview-counter">{{previewIndex + 1}} / {{previewList.length}}</text>
+    <view class="preview-close" catchtap="onClosePreview">✕</view>
+  </view>
+
+  <swiper
+    class="preview-swiper"
+    current="{{previewIndex}}"
+    bindchange="onPreviewChange"
+    duration="220"
+    catchtap="noop"
+  >
+    <swiper-item wx:for="{{previewList}}" wx:key="_id">
+      <view class="preview-slide">
+        <image class="preview-photo" src="{{item.coverUrl}}" mode="aspectFit" />
+        <scroll-view class="preview-meta" scroll-y show-scrollbar="{{false}}" catchtap="noop">
+          <view class="preview-meta-head">
+            <text class="preview-rank">{{item.rank}}</text>
+            <text class="preview-title">{{item.displayTitle}}</text>
+          </view>
+          <view class="preview-badges" wx:if="{{item.badges.length}}">
+            <text class="preview-badge" wx:for="{{item.badges}}" wx:for-item="badge" wx:key="*this">{{badge}}</text>
+          </view>
+          <text class="preview-desc" wx:if="{{item.description}}">{{item.description}}</text>
+        </scroll-view>
+      </view>
+    </swiper-item>
+  </swiper>
+
+  <view class="preview-nav" catchtap="noop">
+    <view class="preview-arrow {{previewIndex === 0 ? 'is-disabled' : ''}}" catchtap="onPreviewPrev">‹</view>
+    <view class="preview-arrow {{previewIndex === previewList.length - 1 ? 'is-disabled' : ''}}" catchtap="onPreviewNext">›</view>
+  </view>
+</view>
 
 <bottom-nav current=""></bottom-nav>

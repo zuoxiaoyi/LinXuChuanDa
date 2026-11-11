@@ -16,11 +16,21 @@ test('background pages reuse the smaller common background asset', () => {
   const content = pageFiles.map(file => readFileSync(join(root, file), 'utf8')).join('\n')
 
   assert.ok(existsSync(join(root, 'images/common/bg.png')))
-  assert.ok(existsSync(join(root, 'images/common/index_bg.png')))
+  assert.ok(existsSync(join(root, 'images/common/index_bg.webp')))
   assert.doesNotMatch(content, /\/images\/splash\/bg\.png/)
   assert.match(content, /\/images\/common\/bg\.png/)
-  assert.match(content, /\/images\/common\/index_bg\.png/)
+  assert.match(content, /\/images\/common\/index_bg\.webp/)
   assert.match(content, /\/images\/common\/title\.png/)
+})
+
+test('index background uses webp and the heavy png source stays out of the package', () => {
+  const content = pageFiles.map(file => readFileSync(join(root, file), 'utf8')).join('\n')
+  const config = JSON.parse(readFileSync(join(root, 'project.config.json'), 'utf8'))
+  const ignored = config.packOptions.ignore.map(item => item.value)
+
+  assert.doesNotMatch(content, /\/images\/common\/index_bg\.png"/)
+  assert.ok(ignored.includes('images/common/index_bg.png'))
+  assert.ok(existsSync(join(root, 'images/common/index_bg.png')))
 })
 
 test('splash page matches prototype asset layout', () => {

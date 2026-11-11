@@ -42,11 +42,46 @@ page {
 
 .date-heading {
   display: flex;
-  align-items: baseline;
-  gap: 18rpx;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
   color: #684b20;
   font-size: 33rpx;
   font-weight: 600;
+}
+
+.date-heading-text {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  min-width: 0;
+}
+
+.date-nav {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+}
+
+.date-nav-btn {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1rpx solid rgba(176, 138, 77, .38);
+  border-radius: 50%;
+  background: rgba(255, 253, 247, .82);
+  color: #8b6630;
+  font-size: 38rpx;
+  line-height: 1;
+  box-shadow: 0 3rpx 10rpx rgba(100, 75, 38, .08);
+}
+
+.date-nav-btn.is-disabled {
+  opacity: .32;
 }
 
 .date-subtitle {
@@ -154,18 +189,30 @@ page {
   flex: 0 0 calc((100% - 36rpx) / 3);
   width: calc((100% - 36rpx) / 3);
   min-width: 0;
+  box-sizing: border-box;
   position: relative;
   overflow: visible;
   display: flex;
   flex-direction: column;
-  background: transparent;
+  padding: 12rpx 6rpx 10rpx;
+  border: 1rpx solid rgba(185, 156, 107, .28);
+  border-radius: 18rpx;
+  background: rgba(255, 253, 247, .46);
+  box-shadow: 0 6rpx 18rpx rgba(100, 75, 38, .07);
+}
+
+.outfit-figure {
+  flex: 1;
+  min-height: 210rpx;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .outfit-image,
 .image-placeholder {
   width: 100%;
   flex: 1;
-  min-height: 210rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -173,7 +220,18 @@ page {
 }
 
 .outfit-image {
-  cursor: pointer;
+  min-height: 0;
+  filter: drop-shadow(0 6rpx 8rpx rgba(96, 74, 42, .22));
+}
+
+.outfit-ground {
+  width: 76%;
+  height: 20rpx;
+  margin: 0 auto 6rpx;
+  flex: none;
+  border-radius: 50%;
+  background: rgba(96, 74, 42, .1);
+  background: radial-gradient(ellipse at center, rgba(96, 74, 42, .3) 0%, rgba(96, 74, 42, .13) 45%, rgba(96, 74, 42, 0) 78%);
 }
 
 .empty-outfit {
@@ -211,7 +269,7 @@ page {
 .collect-button {
   position: absolute;
   right: 8rpx;
-  bottom: 24rpx;
+  bottom: 14rpx;
   width: 42rpx;
   height: 42rpx;
   display: flex;
@@ -415,4 +473,142 @@ page {
 }
 @keyframes lx-spin {
   to { transform: rotate(360deg); }
+}
+
+.preview-layer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  background: rgba(28, 23, 16, .94);
+}
+
+.preview-topbar {
+  flex: none;
+  height: 96rpx;
+  padding: 0 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #f6ecd8;
+  font-size: 26rpx;
+}
+
+.preview-counter {
+  letter-spacing: 2rpx;
+}
+
+.preview-close {
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .12);
+  font-size: 30rpx;
+}
+
+.preview-swiper {
+  flex: 1;
+  height: 0;
+  width: 100%;
+}
+
+.preview-slide {
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  padding: 0 24rpx;
+}
+
+.preview-photo {
+  flex: 1;
+  height: 0;
+  width: 100%;
+}
+
+.preview-meta {
+  flex: none;
+  max-height: 300rpx;
+  box-sizing: border-box;
+  margin: 12rpx 0 8rpx;
+  padding: 22rpx 24rpx 24rpx;
+  border-radius: 20rpx;
+  background: rgba(255, 253, 247, .96);
+}
+
+.preview-meta-head {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.preview-rank {
+  flex: none;
+  padding: 5rpx 16rpx;
+  border-radius: 18rpx;
+  background: #e9d5ae;
+  color: #6d5025;
+  font-size: 21rpx;
+}
+
+.preview-title {
+  color: #5d4728;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.preview-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 18rpx;
+}
+
+.preview-badge {
+  padding: 7rpx 18rpx;
+  border-radius: 22rpx;
+  background: #f1e8d7;
+  color: #806a49;
+  font-size: 22rpx;
+}
+
+.preview-desc {
+  display: block;
+  margin-top: 16rpx;
+  color: #6f6555;
+  font-size: 23rpx;
+  line-height: 1.7;
+}
+
+.preview-nav {
+  flex: none;
+  height: 112rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 90rpx;
+}
+
+.preview-arrow {
+  width: 82rpx;
+  height: 82rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1rpx solid rgba(246, 236, 216, .36);
+  border-radius: 50%;
+  color: #f6ecd8;
+  font-size: 50rpx;
+  line-height: 1;
+}
+
+.preview-arrow.is-disabled {
+  opacity: .3;
 }
