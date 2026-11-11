@@ -385,35 +385,45 @@ page {
 
 .single-figure {
   flex: 1;
-  min-height: 240rpx;
-  display: flex;
-  flex-direction: column;
-  padding: 12rpx 10rpx 0;
+  min-height: 300rpx;
+  position: relative;
   overflow: hidden;
 }
 
-/* aspectFit + flex 分配高度，人物头脚完整；drop-shadow 做人物轮廓投影 */
+/*
+ * 关键修复：不要用 flex:1 + height:0 去撑 <image>。
+ * 小程序 image 是原生渲染节点，显式 height:0 会让渲染层拿到 0 高度，
+ * 即使 flex 把父容器撑起来了，图片也不会跟着重排 —— 表现就是「上半屏只剩阴影、图片整块空白」。
+ * 这里改成绝对定位 + 明确的 calc 宽高，宽高完全不依赖 flex 计算。
+ * aspectFit 保证人物头脚完整，drop-shadow 做人物轮廓投影。
+ */
 .single-cover {
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  height: 0;
-  border-radius: 0;
+  position: absolute;
+  top: 12rpx;
+  left: 10rpx;
+  width: calc(100% - 20rpx);
+  height: calc(100% - 46rpx);
   background: transparent;
   filter: drop-shadow(0 12rpx 16rpx rgba(74, 54, 28, .28));
 }
 
 .single-empty {
-  flex: 1;
-  min-height: 0;
+  position: absolute;
+  top: 12rpx;
+  left: 10rpx;
+  width: calc(100% - 20rpx);
+  height: calc(100% - 46rpx);
+  flex-direction: column;
+  gap: 8rpx;
 }
 
 /* 脚底椭圆落地阴影，与每日推荐六图一致 */
 .single-ground {
-  flex: none;
+  position: absolute;
+  bottom: 4rpx;
+  left: 29%;
   width: 42%;
   height: 22rpx;
-  margin: 0 auto 8rpx;
   border-radius: 50%;
   background: rgba(96, 74, 42, .1);
   background: radial-gradient(ellipse at center, rgba(96, 74, 42, .34) 0%, rgba(96, 74, 42, .14) 48%, rgba(96, 74, 42, 0) 80%);
@@ -456,30 +466,6 @@ page {
   background: #f1e8d7;
   color: #806a49;
   font-size: 22rpx;
-}
-
-.collect-bar {
-  display: flex;
-  justify-content: center;
-  margin-top: 18rpx;
-}
-
-/* 覆盖每日推荐六图用的绝对定位星标，避免单套页收藏按钮飘走 */
-.collect-bar .collect-button {
-  position: static;
-  width: auto;
-  height: auto;
-  padding: 10rpx 28rpx;
-  border: 1rpx solid rgba(185, 156, 107, .4);
-  border-radius: 32rpx;
-  background: #fdf7ea;
-  color: #8b6630;
-}
-
-.collect-text {
-  margin-left: 8rpx;
-  color: #785c30;
-  font-size: 24rpx;
 }
 
 .single-description {
@@ -604,7 +590,7 @@ page {
 
 .preview-photo {
   flex: 1;
-  height: 0;
+  min-height: 0;
   width: 100%;
 }
 

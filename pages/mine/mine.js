@@ -1,8 +1,9 @@
 const app = getApp()
 const { isLoggedIn, requireLogin } = require('../../utils/auth')
 const { toDisplayUrl, safePlaceholder, isDefaultWxAvatar } = require('../../utils/cloudfile')
+const { withShare, isSinglePageMode } = require('../../utils/share')
 
-Page({
+Page(withShare({
   data: {
     userInfo: null,
     points: 0,
@@ -17,15 +18,29 @@ Page({
     dockVisible: false,
     dockThreshold: 0,
     dockTop: 0,
+    // scroll-top 只用于「返回时被意外归零」的兜底恢复，平时不随滚动 setData
+    scrollTop: 0,
     introText: '灵序穿搭，融合东方天时五行智慧与现代穿搭美学，以风水能量调和个人磁场，用专业色彩美学塑造独特气质。团队汇聚二十年资深服装设计师、深耕传统文化的985硕士、专业技术工程师与新锐运营人才，致力于让每一套穿搭，都成为你提升运势、绽放气场的能量载体。'
   },
 
   onLoad() {
+    this.profileLoaded = false
+    this.lastScrollTop = 0
+    this.savedScrollTop = 0
     this.initRewardedVideoAd()
   },
 
   onReady() {
     this.measureDock()
+  },
+
+  /**
+   * 进入详情页时锁住当前滚动位置。
+   * 返回后 onShow 会刷新数据，若刷新触发了 scroll 事件，lastScrollTop 可能被写成 0，
+   * 所以恢复必须用 onHide 时冻结下来的 savedScrollTop，而不是实时的 lastScrollTop。
+   */
+  onHide() {
+    if (typeof this.lastScrollTop === 'number') this.savedScrollTop = this.lastScrollTop
   },
 
   // 量「积分卡底边」在 scroll-view 内容坐标系里的绝对位置。
@@ -52,6 +67,7 @@ Page({
   // 不引入嵌套 scroll-view，避免小程序滚动手势互相抢锁。
   onScroll(e) {
     const scrollTop = e.detail.scrollTop || 0
+    this.lastScrollTop = scrollTop
     const threshold = this.data.dockThreshold
     if (!threshold) return
     const visible = this.data.dockVisible
@@ -83,8 +99,13 @@ Page({
         : null
     })
     if (loggedIn) {
-      this.loadUserData()
+      // 已渲染过一次就静默刷新：不切 loading 态、不卸载收藏列表 DOM，
+      // 从详情页返回时 scroll-view 的滚动位置会自然保留，也不会有「重新加载」的转圈。
+      this.loadUserData({ silent: !!this.profileLoaded })
     } else {
+      this.profileLoaded = false
+      this.lastScrollTop = 0
+      this.savedScrollTop = 0
       this.setData({
         userInfo: null,
         points: 0,
@@ -93,13 +114,14 @@ Page({
         collectedList: [],
         loading: false,
         error: '',
-        dockVisible: false
+        dockVisible: false,
+        scrollTop: 0
       }, () => this.measureDock())
     }
   },
 
-  async loadUserData() {
-    this.setData({ loading: true, error: '' })
+  async loadUserData({ silent = false } = {}) {
+    if (!silent) this.setData({ loading: true, error: '' })
     try {
       const res = await wx.cloud.callFunction({ name: 'getUserProfile' })
       const result = res.result || {}
@@ -127,7 +149,8 @@ Page({
         streakCount: result.streakCount || 0,
         canMakeUp: !!result.canMakeUp,
         collectedList: result.collections || []
-      })
+      }, () => this.measureDock())
+      this.profileLoaded = true
 
       app.globalData.points = user.points || 0
       app.globalData.userInfo = {
@@ -137,11 +160,31 @@ Page({
       wx.setStorageSync('userInfo', app.globalData.userInfo)
     } catch (err) {
       console.error('加载用户数据失败:', err)
-      this.setData({ error: '个人资料加载失败，请稍后重试' })
+      if (silent) {
+        // 静默刷新失败就沿用上一屏内容，绝不切到错误卡片把收藏列表卸载掉
+        console.warn('[mine] 静默刷新失败，保留上次资料与滚动位置')
+      } else {
+        this.setData({ error: '个人资料加载失败，请稍后重试' })
+      }
     } finally {
-      // 收藏列表/loading 状态会改变文档高度，重量一次锚点，避免阈值失准
-      this.setData({ loading: false }, () => this.measureDock())
+      if (!silent) this.setData({ loading: false }, () => this.measureDock())
+      // 兜底：万一内容重排把滚动位置顶回 0，用离开前冻结的位置恢复
+      wx.nextTick(() => this.restoreScrollPosition())
     }
+  },
+
+  restoreScrollPosition() {
+    const target = this.savedScrollTop || 0
+    if (target <= 0) return
+    const query = wx.createSelectorQuery().in(this)
+    query.select('.page-scroll').scrollOffset()
+    query.exec(res => {
+      const current = (res && res[0] && res[0].scrollTop) || 0
+      if (target - current <= 8) return
+      // scroll-top 只在值变化时生效；连续两次返回且目标相同，用 0.5px 抖动触发
+      const next = Number(this.data.scrollTop) === target ? target - 0.5 : target
+      this.setData({ scrollTop: next })
+    })
   },
 
   async onCheckIn() {
@@ -191,6 +234,8 @@ Page({
   },
 
   initRewardedVideoAd() {
+    // 朋友圈单页模式禁用 wx.createRewardedVideoAd
+    if (isSinglePageMode()) return
     const adUnitId = app.globalData.rewardedVideoAdUnitId
     if (!adUnitId || !wx.createRewardedVideoAd) return
 
@@ -377,8 +422,11 @@ Page({
         app.globalData.isLogin = false
         app.globalData.openid = ''
         app.globalData.points = 0
+        this.profileLoaded = false
+        this.lastScrollTop = 0
+        this.savedScrollTop = 0
         this.onShow()
       }
     })
   }
-})
+}))

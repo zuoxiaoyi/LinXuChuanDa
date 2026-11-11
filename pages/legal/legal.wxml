@@ -1,4 +1,5 @@
 <navigation-bar
+  wx:if="{{!singlePageMode}}"
   title="{{title}}"
   back="{{true}}"
   color="#4c3b25"

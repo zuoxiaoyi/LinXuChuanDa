@@ -1,11 +1,12 @@
 const app = getApp()
 const { normalizeRedirect } = require('../../utils/login-route')
 const { normalizeAvatar } = require('../../utils/avatar')
+const { withShare } = require('../../utils/share')
 
 // 云环境 ID（与 app.js 保持一致）。极端情况下 onLaunch 的 cloud.init 尚未就绪时用于兜底初始化。
 const CLOUD_ENV = 'cloudbase-d7gr1giub2c847b49'
 
-Page({
+Page(withShare({
   data: {
     canLogin: true,
     loading: false,
@@ -211,4 +212,4 @@ Page({
     }
     wx.reLaunch({ url: '/pages/index/index' })
   }
-})
+}))

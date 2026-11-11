@@ -1,5 +1,6 @@
 <view class="splash-container">
   <navigation-bar
+    wx:if="{{!singlePageMode}}"
     title="灵序穿搭"
     back="{{false}}"
     color="#111111"

@@ -1,4 +1,6 @@
-Page({
+const { withShare, isSinglePageMode } = require('../../utils/share')
+
+Page(withShare({
   data: {
     countdown: 5,
     canSkip: true,
@@ -35,6 +37,8 @@ Page({
 
   goToIndex() {
     this.clearTimer()
+    // 朋友圈单页模式禁止任何页面跳转，留在当前页由微信提供「前往小程序」入口
+    if (isSinglePageMode()) return
     wx.redirectTo({ url: '/pages/index/index' })
   },
 
@@ -53,4 +57,4 @@ Page({
   onUnload() {
     this.clearTimer()
   }
-})
+}))

@@ -1,4 +1,6 @@
 const { isLoggedIn, goToLogin, requireLogin } = require('../../utils/auth')
+const { toDisplayUrl } = require('../../utils/cloudfile')
+const { withShare, isSinglePageMode } = require('../../utils/share')
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 const DEFAULT_SCENES = ['通勤', '休闲', '度假']
@@ -156,12 +158,19 @@ function buildPreviewList(bestList, secondList) {
   ]
 }
 
-Page({
+// 分享标题：单套页用穿搭名，每日推荐页用当前日期
+function shareTitleFor(page) {
+  const { singleMode, singleOutfit, dateText } = page.data
+  return singleMode
+    ? `${singleOutfit.title || '这套穿搭'} · 灵序穿搭`
+    : `${dateText || '今日'}穿搭灵感 · 灵序穿搭`
+}
+
+Page(withShare({
   data: {
     singleMode: false,
     outfitId: '',
     singleOutfit: {},
-    singleCollected: false,
     dateIndex: 0,
     dateKey: '',
     dateText: '',
@@ -192,10 +201,12 @@ Page({
 
   onLoad(options) {
     this.initPreviewSafeArea()
+    // 朋友圈单页模式没有登录态、也不能跳转登录页，这里放行让公开内容照常渲染
+    const timelineMode = isSinglePageMode()
     const id = (options.id || '').trim()
     if (id) {
       const redirectUrl = `/pages/detail/detail?id=${encodeURIComponent(id)}`
-      if (!isLoggedIn()) {
+      if (!isLoggedIn() && !timelineMode) {
         this.setData({ loading: false, singleMode: true, outfitId: id })
         goToLogin(redirectUrl)
         return
@@ -207,7 +218,7 @@ Page({
 
     const dateIndex = Math.max(0, Math.min(6, Number(options.dateIndex) || 0))
     const redirectUrl = `/pages/detail/detail?dateIndex=${dateIndex}`
-    if (!isLoggedIn()) {
+    if (!isLoggedIn() && !timelineMode) {
       this.setData({ loading: false })
       goToLogin(redirectUrl)
       return
@@ -233,53 +244,32 @@ Page({
         this.setData({ error: '未找到该穿搭，可能已被下架或删除' })
         return
       }
+      // 云函数已把 cloud:// 换成 https 临时链接；这里再兜底一次，
+      // 避免换取失败时把 cloud:// 直接交给 <image> 导致上半屏整块空白。
+      const coverUrl = await toDisplayUrl(result.outfit.coverUrl || '')
+      const outfit = { ...result.outfit, coverUrl }
       this.setData({
-        singleOutfit: result.outfit,
-        singleCollected: !!result.isCollected,
-        previewList: result.outfit?.coverUrl
-          ? [toPreviewItem({ ...result.outfit, _id: result.outfit._id || id }, '已收藏')]
+        singleOutfit: outfit,
+        previewList: outfit.coverUrl
+          ? [toPreviewItem({ ...outfit, _id: outfit._id || id }, '已收藏')]
           : [],
         previewIndex: 0
       })
+      if (!coverUrl) console.warn('[detail] 封面地址为空或换取失败:', result.outfit.coverUrl)
     } catch (err) {
       console.error('加载穿搭详情失败:', err)
-      this.setData({ error: '穿搭详情加载失败，请稍后重试' })
+      this.setData({
+        error: isSinglePageMode() ? '内容暂时无法显示' : '穿搭详情加载失败，请稍后重试'
+      })
     } finally {
       this.setData({ loading: false })
     }
   },
 
-  async onToggleCollectSingle() {
-    if (!requireLogin('登录后才能收藏单套穿搭')) return
-    const outfitId = this.data.outfitId
-    const isCollected = this.data.singleCollected
-    if (!outfitId || this.data.collectingId) return
-
-    this.setData({ collectingId: outfitId })
-    try {
-      const res = await wx.cloud.callFunction({
-        name: 'collectOutfit',
-        data: {
-          outfitId,
-          action: isCollected ? 'cancel' : 'collect'
-        }
-      })
-
-      if (!res.result || !res.result.success) {
-        throw new Error((res.result && res.result.msg) || '收藏失败')
-      }
-
-      this.setData({ singleCollected: !isCollected })
-      wx.showToast({
-        title: isCollected ? '已取消收藏' : '收藏成功',
-        icon: 'success'
-      })
-    } catch (err) {
-      console.error('收藏操作失败:', err)
-      wx.showToast({ title: err.message || '收藏失败', icon: 'none' })
-    } finally {
-      this.setData({ collectingId: '' })
-    }
+  // <image> 加载失败时退回占位图，避免上半屏留一大片空白却无从判断原因
+  onSingleCoverError(e) {
+    console.error('[detail] 单套封面加载失败', e.detail)
+    this.setData({ 'singleOutfit.coverUrl': '', previewList: [] })
   },
 
   callCalendar() {
@@ -361,7 +351,9 @@ Page({
       })
     } catch (err) {
       console.error('加载每日穿搭详情失败:', err)
-      this.setData({ error: '穿搭详情加载失败，请稍后重试' })
+      this.setData({
+        error: isSinglePageMode() ? '内容暂时无法显示' : '穿搭详情加载失败，请稍后重试'
+      })
     } finally {
       this.setData({ loading: false })
     }
@@ -493,6 +485,8 @@ Page({
   },
 
   initRewardedVideoAd() {
+    // 朋友圈单页模式禁用 wx.createRewardedVideoAd
+    if (isSinglePageMode()) return
     const adUnitId = getApp().globalData.rewardedVideoAdUnitId
     if (!adUnitId || !wx.createRewardedVideoAd) return
     this.rewardedVideoAd = wx.createRewardedVideoAd({ adUnitId })
@@ -643,4 +637,25 @@ Page({
       this.setData({ unlocking: false })
     })
   }
-})
+}, {
+  // 转发给好友：带上单套 id 或日期序号，好友点开看到同一套 / 同一天
+  appMessage() {
+    const { singleMode, outfitId, dateIndex } = this.data
+    return {
+      title: shareTitleFor(this),
+      path: singleMode
+        ? `/pages/detail/detail?id=${encodeURIComponent(outfitId)}`
+        : `/pages/detail/detail?dateIndex=${dateIndex}`
+    }
+  },
+  // 朋友圈不能自定义页面路径，只能带 query，落地页就是当前详情页
+  timeline() {
+    const { singleMode, outfitId, dateIndex } = this.data
+    return {
+      title: shareTitleFor(this),
+      query: singleMode
+        ? `id=${encodeURIComponent(outfitId)}`
+        : `dateIndex=${dateIndex}`
+    }
+  }
+}))

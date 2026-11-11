@@ -1,4 +1,5 @@
 <navigation-bar
+  wx:if="{{!singlePageMode}}"
   title="灵序穿搭"
   back="{{true}}"
   color="#4c3b25"

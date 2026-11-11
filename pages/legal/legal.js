@@ -1,3 +1,5 @@
+const { withShare } = require('../../utils/share')
+
 const CONTENT_MAP = {
   user_agreement: {
     title: '用户协议',
@@ -35,7 +37,7 @@ function toHtml(content) {
     .join('')
 }
 
-Page({
+Page(withShare({
   data: {
     type: 'user_agreement',
     title: CONTENT_MAP.user_agreement.title,
@@ -72,4 +74,4 @@ Page({
       console.warn('加载协议内容失败，使用本地兜底文案', error)
     }
   }
-})
+}))

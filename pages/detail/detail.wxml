@@ -1,4 +1,5 @@
 <navigation-bar
+  wx:if="{{!singlePageMode}}"
   title="穿搭详情"
   back="{{true}}"
   color="#3d3529"
@@ -35,7 +36,7 @@
     <view class="state-container" wx:elif="{{error}}">
       <image class="state-icon" src="/images/icons/warning.png" mode="aspectFit" />
       <text>{{error}}</text>
-      <button class="retry-button" bindtap="onRetry">重新加载</button>
+      <button class="retry-button" wx:if="{{!singlePageMode}}" bindtap="onRetry">重新加载</button>
     </view>
 
     <view class="state-container single-container" wx:elif="{{singleMode}}">
@@ -47,7 +48,7 @@
             class="single-cover"
             src="{{singleOutfit.coverUrl}}"
             mode="aspectFit"
-            lazy-load
+            binderror="onSingleCoverError"
             data-id="{{singleOutfit._id || outfitId}}"
             bindtap="onOpenPreview"
           />
@@ -65,17 +66,6 @@
 
           <view class="single-tags" wx:if="{{singleOutfit.tags.length}}">
             <text class="single-tag" wx:for="{{singleOutfit.tags}}" wx:key="*this">{{item}}</text>
-          </view>
-
-          <view class="collect-bar" catchtap="onToggleCollectSingle">
-            <view class="collect-button {{singleCollected ? 'is-collected' : ''}}">
-              <image
-                class="collect-icon"
-                src="{{singleCollected ? '/images/icons/star.png' : '/images/icons/star-outline.png'}}"
-                mode="aspectFit"
-              />
-              <text class="collect-text">{{singleCollected ? '已收藏' : '收藏'}}</text>
-            </view>
           </view>
 
           <text class="single-description" wx:if="{{singleOutfit.description}}">{{singleOutfit.description}}</text>
@@ -288,4 +278,4 @@
   <view class="preview-arrow preview-arrow--right {{previewIndex === previewList.length - 1 ? 'is-disabled' : ''}}" catchtap="onPreviewNext">›</view>
 </view>
 
-<bottom-nav current=""></bottom-nav>
+<bottom-nav wx:if="{{!singlePageMode}}" current=""></bottom-nav>

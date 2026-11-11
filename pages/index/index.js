@@ -1,5 +1,6 @@
 const { isLoggedIn, goToLogin } = require('../../utils/auth')
 const { ensurePrivacyAuthorize } = require('../../utils/privacy')
+const { withShare, isSinglePageMode } = require('../../utils/share')
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 
@@ -48,7 +49,7 @@ function emptyWeather(status = '正在获取天气') {
   }
 }
 
-Page({
+Page(withShare({
   data: {
     dateList: [],
     selectedDateIndex: 0,
@@ -171,6 +172,8 @@ Page({
   },
 
   initRewardedVideoAd() {
+    // 朋友圈单页模式禁用 wx.createRewardedVideoAd
+    if (isSinglePageMode()) return
     const adUnitId = getApp().globalData.rewardedVideoAdUnitId
     if (!adUnitId || !wx.createRewardedVideoAd) return
     this.rewardedVideoAd = wx.createRewardedVideoAd({ adUnitId })
@@ -415,4 +418,4 @@ Page({
       path: '/pages/index/index'
     }
   }
-})
+}))

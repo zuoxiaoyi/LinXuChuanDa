@@ -9,6 +9,7 @@
   ],
   "window": {
     "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "灵序穿搭",
     "navigationStyle": "custom"
   },
   "style": "v2",

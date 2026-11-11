@@ -1,4 +1,5 @@
 <navigation-bar
+  wx:if="{{!singlePageMode}}"
   title="灵序穿搭"
   back="{{false}}"
   color="#3d3529"
@@ -75,7 +76,7 @@
     </view>
 
     <view class="action-row">
-      <button class="outline-button share-button" open-type="share">
+      <button wx:if="{{!singlePageMode}}" class="outline-button share-button" open-type="share">
         <image class="local-icon" src="/images/icons/share.png" mode="aspectFit" />
         <text>分享好友</text>
       </button>
@@ -149,4 +150,4 @@
 </view>
 </scroll-view>
 
-<bottom-nav current="home"></bottom-nav>
+<bottom-nav wx:if="{{!singlePageMode}}" current="home"></bottom-nav>

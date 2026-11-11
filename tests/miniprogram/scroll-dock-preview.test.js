@@ -43,7 +43,7 @@ test('刘海满宽、无圆角、整块不透明深色，收藏图不会透眼',
   assert.match(mineWxss, /\.notch-name\s*\{[^}]*color:\s*#f6ecd8/s)
 })
 
-test('单套穿搭详情：底部信息卡固定，图片占剩余空间并补阴影', () => {
+test('单套穿搭详情：底部信息卡固定，图片用明确宽高渲染并补阴影', () => {
   assert.match(detailWxml, /class="state-container single-container"/)
   assert.match(detailWxml, /class="single-figure"/)
   assert.match(detailWxml, /class="single-ground"/)
@@ -53,14 +53,21 @@ test('单套穿搭详情：底部信息卡固定，图片占剩余空间并补�
   // 占位图用显式 wx:if，避免插入脚底阴影打断 wx:if/wx:else 条件链
   assert.match(detailWxml, /class="image-placeholder empty-outfit single-empty" wx:if="\{\{!singleOutfit\.coverUrl\}\}"/)
 
+  // 修复白屏：单套封面不再靠 flex:1 + height:0 撑高，也不做懒加载，加载失败有兜底
+  assert.match(detailWxml, /binderror="onSingleCoverError"/)
+  assert.doesNotMatch(detailWxml, /class="single-cover"[\s\S]{0,220}lazy-load/)
   assert.match(detailWxss, /\.single-container\s*\{[^}]*flex:\s*1/s)
-  assert.match(detailWxss, /\.single-cover\s*\{[^}]*flex:\s*1/s)
+  assert.match(detailWxss, /\.single-cover\s*\{[^}]*position:\s*absolute/s)
+  assert.match(detailWxss, /\.single-cover\s*\{[^}]*height:\s*calc\(100%/s)
+  assert.doesNotMatch(detailWxss, /\.single-cover\s*\{[^}]*[^-]height:\s*0\s*;/s)
   assert.match(detailWxss, /\.single-cover\s*\{[^}]*drop-shadow/s)
   assert.match(detailWxss, /\.single-ground\s*\{[^}]*radial-gradient/s)
   assert.match(detailWxss, /\.single-info\s*\{[^}]*height:\s*42vh/s)
   assert.match(detailWxss, /\.single-info\s*\{[^}]*box-shadow:\s*0 -14rpx/s)
-  // 覆盖六图星标的绝对定位，收藏按钮不再飘走
-  assert.match(detailWxss, /\.collect-bar \.collect-button\s*\{[^}]*position:\s*static/s)
+  // 「已收藏」按钮整块移除，底部信息卡不再被占一行
+  assert.doesNotMatch(detailWxml, /collect-bar/)
+  assert.doesNotMatch(detailWxss, /\.collect-bar\s*\{/)
+  assert.doesNotMatch(detailWxss, /\.collect-text\s*\{/)
 })
 
 test('刘海阈值用 SelectorQuery 量锚点绝对位置，且带反向滞回', () => {
