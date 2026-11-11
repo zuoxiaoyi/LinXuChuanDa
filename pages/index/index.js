@@ -412,6 +412,11 @@ Page(withShare({
     wx.navigateTo({ url })
   },
 
+  // 背景图加载失败时留痕，便于真机排查（包内资源只认 PNG/JPG，不用 webp）
+  onBgError(e) {
+    console.error('[index] 背景图加载失败', e && e.detail)
+  },
+
   onShareAppMessage() {
     return {
       title: `${this.data.selectedDay.dateText}灵序穿搭建议`,

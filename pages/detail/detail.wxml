@@ -15,7 +15,7 @@
   enable-back-to-top
 >
 <view class="detail-page">
-  <image class="detail-bg" src="/images/common/index_bg.webp" mode="aspectFill" />
+  <image class="detail-bg" src="/images/common/index_bg.png" mode="aspectFill" binderror="onBgError" />
   <view class="detail-content">
     <view class="date-heading">
       <view class="date-heading-text">

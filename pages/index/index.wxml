@@ -8,7 +8,7 @@
 
 <scroll-view class="page-scroll" scroll-y enhanced bounces="{{false}}" show-scrollbar="{{false}}" enable-back-to-top>
 <view class="page-shell">
-  <image class="paper-bg" src="/images/common/index_bg.webp" mode="aspectFill" />
+  <image class="paper-bg" src="/images/common/index_bg.png" mode="aspectFill" binderror="onBgError" />
   <view class="content">
     <view class="date-heading centered-date">
       <view class="date-main">

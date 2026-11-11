@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict')
-const { existsSync, readFileSync } = require('node:fs')
+const { existsSync, readFileSync, readdirSync, statSync } = require('node:fs')
 const { join } = require('node:path')
 const test = require('node:test')
 
@@ -16,21 +16,41 @@ test('background pages reuse the smaller common background asset', () => {
   const content = pageFiles.map(file => readFileSync(join(root, file), 'utf8')).join('\n')
 
   assert.ok(existsSync(join(root, 'images/common/bg.png')))
-  assert.ok(existsSync(join(root, 'images/common/index_bg.webp')))
+  assert.ok(existsSync(join(root, 'images/common/index_bg.png')))
   assert.doesNotMatch(content, /\/images\/splash\/bg\.png/)
   assert.match(content, /\/images\/common\/bg\.png/)
-  assert.match(content, /\/images\/common\/index_bg\.webp/)
+  assert.match(content, /\/images\/common\/index_bg\.png/)
   assert.match(content, /\/images\/common\/title\.png/)
 })
 
-test('index background uses webp and the heavy png source stays out of the package', () => {
+test('背景图统一用真机兼容的压缩 PNG，webP 不进小程序包', () => {
   const content = pageFiles.map(file => readFileSync(join(root, file), 'utf8')).join('\n')
   const config = JSON.parse(readFileSync(join(root, 'project.config.json'), 'utf8'))
   const ignored = config.packOptions.ignore.map(item => item.value)
 
-  assert.doesNotMatch(content, /\/images\/common\/index_bg\.png"/)
-  assert.ok(ignored.includes('images/common/index_bg.png'))
-  assert.ok(existsSync(join(root, 'images/common/index_bg.png')))
+  // 微信 image 组件的 webp 属性「默认不解析 webP 格式，只支持网络资源」；
+  // 包内本地 .webp 在开发者工具(Chromium)正常、真机 WebView(尤其 iOS) 不渲染。
+  assert.doesNotMatch(content, /index_bg\.webp/)
+  assert.match(content, /\/images\/common\/index_bg\.png/)
+  assert.ok(!ignored.includes('images/common/index_bg.png'), '压缩后的 PNG 必须进包')
+  assert.ok(ignored.includes('images/common/index_bg.webp'), '未使用的 webP 不进包')
+
+  const png = join(root, 'images/common/index_bg.png')
+  assert.ok(existsSync(png))
+  assert.ok(statSync(png).size < 120 * 1024, '背景图需保持量化压缩，不要退回 326KB 原图')
+})
+
+test('所有页面 WXML 都不引用本地 webp 资源', () => {
+  const pagesDir = join(root, 'pages')
+  const files = readdirSync(pagesDir, { withFileTypes: true })
+    .filter(entry => entry.isDirectory())
+    .map(entry => join(pagesDir, entry.name, `${entry.name}.wxml`))
+    .filter(existsSync)
+
+  assert.ok(files.length >= 5)
+  for (const file of files) {
+    assert.doesNotMatch(readFileSync(file, 'utf8'), /\.webp/, file)
+  }
 })
 
 test('splash page matches prototype asset layout', () => {

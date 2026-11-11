@@ -636,6 +636,11 @@ Page(withShare({
       this.pendingUnlockIndex = null
       this.setData({ unlocking: false })
     })
+  },
+
+  // 背景图加载失败时留痕，便于真机排查（包内资源只认 PNG/JPG，不用 webp）
+  onBgError(e) {
+    console.error('[detail] 背景图加载失败', e && e.detail)
   }
 }, {
   // 转发给好友：带上单套 id 或日期序号，好友点开看到同一套 / 同一天

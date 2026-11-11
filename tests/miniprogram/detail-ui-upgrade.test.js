@@ -6,17 +6,18 @@ const test = require('node:test')
 const root = join(__dirname, '..', '..')
 const read = file => readFileSync(join(root, file), 'utf8')
 
-test('背景图使用 webp，源 PNG 保留但不进小程序包', () => {
+test('背景图使用真机兼容的压缩 PNG，webP 不进小程序包', () => {
   const indexWxml = read('pages/index/index.wxml')
   const detailWxml = read('pages/detail/detail.wxml')
   const config = JSON.parse(read('project.config.json'))
   const ignored = config.packOptions.ignore.map(item => item.value)
 
-  assert.ok(existsSync(join(root, 'images/common/index_bg.webp')))
-  assert.match(indexWxml, /index_bg\.webp/)
-  assert.match(detailWxml, /index_bg\.webp/)
-  assert.doesNotMatch(indexWxml + detailWxml, /index_bg\.png"/)
-  assert.ok(ignored.includes('images/common/index_bg.png'))
+  assert.ok(existsSync(join(root, 'images/common/index_bg.png')))
+  assert.match(indexWxml, /index_bg\.png/)
+  assert.match(detailWxml, /index_bg\.png/)
+  assert.doesNotMatch(indexWxml + detailWxml, /index_bg\.webp/)
+  assert.ok(!ignored.includes('images/common/index_bg.png'))
+  assert.ok(ignored.includes('images/common/index_bg.webp'))
 })
 
 test('六张人物图带落地阴影与轮廓分离', () => {
