@@ -69,7 +69,7 @@ onMounted(load)
       <div class="panel-heading">
         <div>
           <small>CONTENT PIPELINE</small>
-          <h2>每日建议发布状态</h2>
+          <h2>穿搭详情发布状态</h2>
         </div>
         <el-icon><Document /></el-icon>
       </div>
@@ -83,7 +83,7 @@ onMounted(load)
           <span>待复核草稿</span>
         </div>
       </div>
-      <router-link to="/recommendations">进入每日建议管理 →</router-link>
+      <router-link to="/recommendations">进入穿搭详情配置 →</router-link>
     </article>
 
     <article class="surface checklist-panel">

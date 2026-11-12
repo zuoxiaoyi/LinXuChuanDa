@@ -64,7 +64,7 @@ async function submit() {
       <p class="story-index">LINXU / ADMINISTRATION</p>
       <h1>把每日灵感，<br />变成可运营的秩序。</h1>
       <p>
-        维护穿搭素材、五行规则、每日建议和用户积分记录，
+        维护穿搭素材、五行规则、穿搭详情配置和用户积分记录，
         所有发布内容都保留版本与审计轨迹。
       </p>
       <div class="story-rule" />

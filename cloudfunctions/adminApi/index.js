@@ -1085,7 +1085,7 @@ async function batchPublishRecommendations(payload, admin, requestId) {
     ? [...new Set(payload.ids.filter(id => typeof id === 'string' && id))].slice(0, 100)
     : []
   if (!ids.length) {
-    throw new ApiError('VALIDATION_ERROR', '请先选择要发布的每日建议')
+    throw new ApiError('VALIDATION_ERROR', '请先选择要发布的穿搭详情')
   }
 
   // 一次批量读取 + 分批并发写入：整月 31 天也能在云函数 15 秒超时内跑完

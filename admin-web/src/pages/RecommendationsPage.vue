@@ -101,7 +101,7 @@ async function load() {
     list.value = data.list
     total.value = data.total
   } catch (error: any) {
-    ElMessage.error(error?.message || '每日建议加载失败')
+    ElMessage.error(error?.message || '穿搭详情数据加载失败')
   } finally {
     loading.value = false
   }
@@ -148,7 +148,7 @@ async function generate() {
 async function publish(row: DailyRecommendation | any) {
   try {
     await ElMessageBox.confirm(
-      `发布${row.date}的每日建议后，小程序将读取这份快照。`,
+      `发布 ${row.date} 的穿搭配置后，小程序穿搭详情页将读取这份快照。`,
       '发布确认',
       { center: true }
     )
@@ -188,7 +188,7 @@ async function batchPublish() {
   }
   try {
     await ElMessageBox.confirm(
-      `将发布选中的 ${ids.length} 天每日建议。已发布或内容不完整的记录会自动跳过，不影响其它日期。`,
+      `将发布选中的 ${ids.length} 天穿搭配置。已发布或内容不完整的记录会自动跳过，不影响其它日期。`,
       '批量发布确认',
       { center: true }
     )
@@ -318,9 +318,9 @@ onMounted(load)
 
 <template>
   <PageHeader
-    eyebrow="建议管理"
-    title="每日建议"
-    description="算法按当日宜穿色生成草稿；运营人员核对搭配后，可单条或批量发布。"
+    eyebrow="详情页配置"
+    title="穿搭详情"
+    description="按日期配置小程序穿搭详情页展示的 6 套穿搭与幸运配饰；算法先生成草稿，运营核对后单条或批量发布。"
   >
     <el-button :icon="Refresh" @click="load">刷新</el-button>
     <el-button
@@ -364,7 +364,7 @@ onMounted(load)
       :closable="false"
       show-icon
       title="发布后控制哪些页面"
-      description="控制小程序「穿搭详情」页的最佳 / 次佳 6 套穿搭与幸运配饰；宜穿色与干支来自「日历与颜色」，「我的」页简介来自「内容配置」，都不在这里维护。发布需满足 3 套最佳 + 3 套次佳 + 至少 1 个配饰（建议 3 个，不足时小程序自动补齐）。"
+      description="本页按日期配置小程序「穿搭详情」页展示的最佳 / 次佳 6 套穿搭与幸运配饰；宜穿色与干支来自「日历与颜色」，「我的」页简介来自「内容配置」，都不在这里维护。发布需满足 3 套最佳 + 3 套次佳 + 至少 1 个配饰（建议 3 个，不足时小程序自动补齐）。"
     />
 
     <div class="table-wrap">
@@ -427,7 +427,7 @@ onMounted(load)
   </section>
 
   <!-- 批量生成 -->
-  <el-dialog v-model="generateVisible" title="批量生成每日建议" width="480px">
+  <el-dialog v-model="generateVisible" title="批量生成穿搭详情" width="480px">
     <el-form ref="generateFormRef" :model="generateForm" :rules="generateRules" label-position="top">
       <el-form-item label="日期范围" prop="range">
         <el-date-picker
@@ -484,7 +484,7 @@ onMounted(load)
   </el-dialog>
 
   <!-- 查看 / 调整 -->
-  <el-drawer v-model="detailVisible" :title="`${detailRow?.date || ''} 每日建议`" size="620px">
+  <el-drawer v-model="detailVisible" :title="`${detailRow?.date || ''} 穿搭详情`" size="620px">
     <template v-if="detailRow">
       <el-descriptions :column="2" border size="small" class="detail-desc">
         <el-descriptions-item label="规则版本">{{ detailRow.ruleVersion }}</el-descriptions-item>

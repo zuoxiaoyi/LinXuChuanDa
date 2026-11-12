@@ -52,7 +52,7 @@ test('后台页面小标题、顶栏、角色均为中文', () => {
   assert.match(adminLayout, /roleLabels\[auth\.admin/)
 })
 
-test('每日建议：枚举值中文、创建/更新时间两列', () => {
+test('穿搭详情：枚举值中文、创建/更新时间两列', () => {
   assert.match(recommendationsPage, /generationModeLabels/)
   assert.match(recommendationsPage, /statusLabels\[row\.status\]/)
   assert.match(recommendationsPage, /label="创建时间"/)
@@ -63,7 +63,7 @@ test('每日建议：枚举值中文、创建/更新时间两列', () => {
   assert.doesNotMatch(recommendationsPage, /\{\{\s*row\.status\s*\}\}/)
 })
 
-test('每日建议：查看/调整可点击并支持自动挑选与保存', () => {
+test('穿搭详情：查看/调整可点击并支持自动挑选与保存', () => {
   assert.match(recommendationsPage, /@click="openDetail\(row\)"/)
   assert.match(recommendationsPage, /<el-drawer/)
   assert.match(recommendationsPage, /'recommendations\.autoFill'/)
@@ -72,7 +72,7 @@ test('每日建议：查看/调整可点击并支持自动挑选与保存', () =
   assert.match(recommendationsPage, /保存并发布/)
 })
 
-test('每日建议：批量生成可回填空草稿，且不覆盖已发布/人工调整记录', () => {
+test('穿搭详情：批量生成可回填空草稿，且不覆盖已发布/人工调整记录', () => {
   assert.match(recommendationsPage, /overwriteDraft/)
   assert.match(recommendationsPage, /回填已有草稿/)
   assert.match(adminApi, /payload\.overwriteDraft === true/)
@@ -80,7 +80,7 @@ test('每日建议：批量生成可回填空草稿，且不覆盖已发布/人�
   assert.match(adminApi, /existing\.manualOverride !== true/)
 })
 
-test('每日建议：批量发布走多选与独立接口，失败明细可见', () => {
+test('穿搭详情：批量发布走多选与独立接口，失败明细可见', () => {
   assert.match(recommendationsPage, /type="selection"/)
   assert.match(recommendationsPage, /@selection-change="onSelectionChange"/)
   assert.match(recommendationsPage, /'recommendations\.batchPublish'/)
@@ -184,14 +184,14 @@ test('自动挑选规则：素材不足时如实返回，不伪造条目', () =>
   assert.deepEqual(fill.accessoryIds, [])
 })
 
-test('每日建议：表格撑满容器（弹性列），不再只占半屏', () => {
+test('穿搭详情：表格撑满容器（弹性列），不再只占半屏', () => {
   assert.match(recommendationsPage, /<el-table[^>]*width="100%"/s)
   assert.match(recommendationsPage, /label="日期" min-width="120"/)
   assert.match(recommendationsPage, /label="创建时间" min-width="170"/)
   assert.match(recommendationsPage, /label="操作" width="170" fixed="right"/)
 })
 
-test('每日建议：日期范围筛选透传且与状态筛选共用同一入口', () => {
+test('穿搭详情：日期范围筛选透传且与状态筛选共用同一入口', () => {
   assert.match(recommendationsPage, /v-model="query\.range"/)
   assert.match(recommendationsPage, /type="daterange"/)
   assert.match(recommendationsPage, /@change="onFilterChange"/)
@@ -206,9 +206,9 @@ test('每日建议：日期范围筛选透传且与状态筛选共用同一入�
   assert.match(adminApi, /where\.date = command\.gte\(startDate\)\.and\(command\.lte\(endDate\)\)/)
 })
 
-test('每日建议：页面明确说明发布后控制哪些数据', () => {
+test('穿搭详情：页面明确说明发布后控制哪些数据', () => {
   assert.match(recommendationsPage, /title="发布后控制哪些页面"/)
-  assert.match(recommendationsPage, /控制小程序「穿搭详情」页的最佳 \/ 次佳 6 套穿搭与幸运配饰/)
+  assert.match(recommendationsPage, /按日期配置小程序「穿搭详情」页展示的最佳 \/ 次佳 6 套穿搭与幸运配饰/)
   assert.match(recommendationsPage, /宜穿色与干支来自「日历与颜色」/)
   assert.match(recommendationsPage, /「我的」页简介来自「内容配置」/)
   assert.match(recommendationsPage, /建议 3 个，对应详情页三列/)
@@ -218,4 +218,27 @@ test('每日建议：页面明确说明发布后控制哪些数据', () => {
 test('内容配置：说明文案同步简介已接入「我的」页', () => {
   assert.match(contentPage, /「我的」页简介同步更新/)
   assert.match(contentPage, /「分享文案」目前仅供后台留存/)
+})
+
+test('菜单更名：面向运营统一叫「穿搭详情」，内部 action / 集合名保持不变', () => {
+  assert.match(adminLayout, /path: '\/recommendations', label: '穿搭详情'/)
+  assert.doesNotMatch(adminLayout, /label: '每日建议'/)
+  assert.match(recommendationsPage, /title="穿搭详情"/)
+  assert.match(recommendationsPage, /eyebrow="详情页配置"/)
+  assert.doesNotMatch(recommendationsPage, /每日建议/)
+
+  const dashboard = read('../src/pages/DashboardPage.vue')
+  const login = read('../src/pages/LoginPage.vue')
+  const readme = read('../README.md')
+  assert.match(dashboard, /穿搭详情发布状态/)
+  assert.match(dashboard, /进入穿搭详情配置/)
+  assert.match(login, /穿搭详情配置/)
+  assert.match(readme, /穿搭详情（按日期的每日穿搭配置）/)
+
+  // 只改展示名：路由、action、集合、云函数都沿用 recommendations / dailyRecommendations，
+  // 数据不需要迁移，历史发布记录与月末定时触发器不受影响。
+  assert.match(recommendationsPage, /'recommendations\.list'/)
+  assert.match(adminApi, /db\.collection\('dailyRecommendations'\)/)
+  assert.match(adminApi, /请先选择要发布的穿搭详情/)
+  assert.match(autoGen, /recommendations\.autoGenerateMonth/)
 })
