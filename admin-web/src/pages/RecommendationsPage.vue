@@ -42,7 +42,17 @@ const generateRules: FormRules<typeof generateForm> = {
   range: [{ required: true, message: '请选择生成日期范围', trigger: 'change' }],
   ruleVersion: [{ required: true, message: '请填写规则版本', trigger: 'blur' }]
 }
-const query = reactive({ page: 1, pageSize: 20, status: '' })
+const query = reactive<{
+  page: number
+  pageSize: number
+  status: string
+  range: [string, string] | null
+}>({
+  page: 1,
+  pageSize: 20,
+  status: '',
+  range: null
+})
 
 const generationModeLabels: Record<string, string> = {
   algorithm: '算法生成',
@@ -69,12 +79,24 @@ function isPublishable(row: DailyRecommendation | any) {
     && (row.accessoryIds?.length || 0) >= 1
 }
 
+// 改动筛选条件时回到第一页，否则停在旧页码会看到空列表
+function onFilterChange() {
+  query.page = 1
+  load()
+}
+
 async function load() {
   loading.value = true
   try {
     const data = await callAdminApi<PageResult<DailyRecommendation>>(
       'recommendations.list',
-      query
+      {
+        page: query.page,
+        pageSize: query.pageSize,
+        status: query.status,
+        startDate: query.range?.[0] || '',
+        endDate: query.range?.[1] || ''
+      }
     )
     list.value = data.list
     total.value = data.total
@@ -316,48 +338,69 @@ onMounted(load)
 
   <section class="surface">
     <div class="toolbar">
-      <el-select v-model="query.status" clearable placeholder="全部状态" style="width: 150px" @change="load">
+      <el-date-picker
+        v-model="query.range"
+        type="daterange"
+        value-format="YYYY-MM-DD"
+        range-separator="至"
+        start-placeholder="开始日期"
+        end-placeholder="结束日期"
+        clearable
+        style="width: 268px"
+        @change="onFilterChange"
+      />
+      <el-select v-model="query.status" clearable placeholder="全部状态" style="width: 150px" @change="onFilterChange">
         <el-option label="草稿" value="draft" />
         <el-option label="已发布" value="published" />
         <el-option label="已停用" value="disabled" />
       </el-select>
       <div class="toolbar-spacer" />
-      <span class="hint">同一日期只允许一条正式发布快照 · 内容不足 3 套最佳 / 3 套次佳 / 1 个配饰时无法发布</span>
+      <span class="hint">同一日期只允许一条正式发布快照</span>
     </div>
+
+    <el-alert
+      class="scope-alert"
+      type="info"
+      :closable="false"
+      show-icon
+      title="发布后控制哪些页面"
+      description="控制小程序「穿搭详情」页的最佳 / 次佳 6 套穿搭与幸运配饰；宜穿色与干支来自「日历与颜色」，「我的」页简介来自「内容配置」，都不在这里维护。发布需满足 3 套最佳 + 3 套次佳 + 至少 1 个配饰（建议 3 个，不足时小程序自动补齐）。"
+    />
+
     <div class="table-wrap">
-      <el-table v-loading="loading" :data="list" @selection-change="onSelectionChange">
+      <el-table v-loading="loading" :data="list" width="100%" @selection-change="onSelectionChange">
         <el-table-column type="selection" width="46" />
-        <el-table-column prop="date" label="日期" width="120" />
-        <el-table-column prop="ruleVersion" label="规则版本" width="100" />
-        <el-table-column label="最佳/次佳" width="130">
+        <el-table-column prop="date" label="日期" min-width="120" />
+        <el-table-column prop="ruleVersion" label="规则版本" min-width="100" />
+        <el-table-column label="最佳/次佳" min-width="130">
           <template #default="{ row }">
             <span :class="{ insufficient: !isPublishable(row) }">
               {{ row.bestOutfits?.length || 0 }} / {{ row.secondaryOutfits?.length || 0 }}
             </span>
           </template>
         </el-table-column>
-        <el-table-column label="配饰" width="80">
+        <el-table-column label="配饰" min-width="80">
           <template #default="{ row }">{{ row.accessoryIds?.length || 0 }}</template>
         </el-table-column>
-        <el-table-column label="生成方式" width="110">
+        <el-table-column label="生成方式" min-width="110">
           <template #default="{ row }">
             <el-tag effect="plain">{{ generationModeLabels[row.generationMode] || row.generationMode }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="人工调整" width="100">
+        <el-table-column label="人工调整" min-width="100">
           <template #default="{ row }">{{ row.manualOverride ? '是' : '否' }}</template>
         </el-table-column>
-        <el-table-column label="状态" width="100">
+        <el-table-column label="状态" min-width="100">
           <template #default="{ row }">
             <el-tag :type="row.status === 'published' ? 'success' : row.status === 'disabled' ? 'danger' : 'info'">
               {{ statusLabels[row.status] || row.status }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="创建时间" width="170">
+        <el-table-column label="创建时间" min-width="170">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="更新时间" width="170">
+        <el-table-column label="更新时间" min-width="170">
           <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
         </el-table-column>
         <el-table-column label="操作" width="170" fixed="right">
@@ -372,10 +415,12 @@ onMounted(load)
       <div class="pagination-row">
         <el-pagination
           v-model:current-page="query.page"
-          :page-size="query.pageSize"
-          layout="total, prev, pager, next"
+          v-model:page-size="query.pageSize"
+          :page-sizes="[20, 50, 100]"
+          layout="total, sizes, prev, pager, next"
           :total="total"
           @current-change="load"
+          @size-change="onFilterChange"
         />
       </div>
     </div>
@@ -401,7 +446,7 @@ onMounted(load)
         回填已有草稿（把早期生成的空记录补齐，已发布或人工调整过的不动）
       </el-checkbox>
       <el-alert
-        title="按当日宜穿色自动挑选 3 套最佳、3 套次佳与 1 个配饰，结果只保存为草稿，不会自动发布。"
+        title="按当日宜穿色自动挑选 3 套最佳、3 套次佳与 3 个配饰，结果只保存为草稿，不会自动发布。"
         type="warning"
         :closable="false"
       />
@@ -457,7 +502,7 @@ onMounted(load)
         type="info"
         :closable="false"
         :title="`首选色：${colorsOf(detailRow.colorAdvice?.primary)}　次选色：${colorsOf(detailRow.colorAdvice?.secondary)}`"
-        :description="`不建议色：${colorsOf(detailRow.colorAdvice?.avoid)}；发布要求：3 套最佳 + 3 套次佳 + 1 个幸运配饰。`"
+        :description="`不建议色：${colorsOf(detailRow.colorAdvice?.avoid)}；发布要求：3 套最佳 + 3 套次佳 + 至少 1 个幸运配饰（建议选满 3 个，对应详情页三列）。`"
       />
 
       <el-form label-position="top" class="detail-form">
@@ -471,8 +516,15 @@ onMounted(load)
             <el-option v-for="opt in outfitOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="幸运配饰（建议 1 个）">
-          <el-select v-model="detailForm.accessoryIds" multiple filterable collapse-tags style="width: 100%">
+        <el-form-item label="幸运配饰（建议 3 个，对应详情页三列）">
+          <el-select
+            v-model="detailForm.accessoryIds"
+            multiple
+            filterable
+            collapse-tags
+            :multiple-limit="3"
+            style="width: 100%"
+          >
             <el-option v-for="opt in accessoryOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
@@ -492,6 +544,10 @@ onMounted(load)
 .hint {
   color: #8b806f;
   font-size: 12px;
+}
+
+.scope-alert {
+  margin: 14px 18px 0;
 }
 
 .insufficient {

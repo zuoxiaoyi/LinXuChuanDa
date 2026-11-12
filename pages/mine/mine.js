@@ -4,6 +4,10 @@ const { toDisplayUrl, safePlaceholder, isDefaultWxAvatar } = require('../../util
 const { withShare, isSinglePageMode } = require('../../utils/share')
 const { isAdGateEnabled } = require('../../utils/ad-gate')
 
+// 后台「内容配置 → 灵序穿搭简介」未发布或请求失败时的本地兜底文案。
+// 必须与后台已发布版本保持一致，且不含风水 / 运势等审核敏感表述。
+const DEFAULT_INTRO = '灵序穿搭，每天告诉你穿什么颜色。结合天气、节气与色彩美学，提供未来 7 天顺时穿搭建议、当日宜穿色与多套搭配参考，支持收藏与穿搭日历。每天打开看一眼，出门不再纠结。'
+
 Page(withShare({
   data: {
     userInfo: null,
@@ -23,7 +27,7 @@ Page(withShare({
     dockTop: 0,
     // scroll-top 只用于「返回时被意外归零」的兜底恢复，平时不随滚动 setData
     scrollTop: 0,
-    introText: '灵序穿搭，融合东方天时五行智慧与现代穿搭美学，以风水能量调和个人磁场，用专业色彩美学塑造独特气质。团队汇聚二十年资深服装设计师、深耕传统文化的985硕士、专业技术工程师与新锐运营人才，致力于让每一套穿搭，都成为你提升运势、绽放气场的能量载体。'
+    introText: DEFAULT_INTRO
   },
 
   onLoad() {
@@ -32,6 +36,26 @@ Page(withShare({
     this.savedScrollTop = 0
     this.setData({ adGateEnabled: isAdGateEnabled() })
     this.initRewardedVideoAd()
+    // 简介不常变，进页面取一次即可；公开接口免登录，失败时静默保留本地兜底文案
+    this.loadIntro()
+  },
+
+  async loadIntro() {
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'adminApi',
+        data: {
+          action: 'content.publicGet',
+          payload: { key: 'about', locale: 'zh-CN' }
+        }
+      })
+      const content = res.result?.data?.content
+      if (res.result?.success && content) {
+        this.setData({ introText: content })
+      }
+    } catch (error) {
+      console.warn('加载灵序穿搭简介失败，使用本地兜底文案', error)
+    }
   },
 
   onReady() {

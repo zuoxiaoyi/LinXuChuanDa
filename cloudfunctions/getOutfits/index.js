@@ -177,14 +177,16 @@ async function dailyRecommendation(event) {
   if (doc) {
     try {
       const published = await expandPublishedDayFromDb(doc)
+      // 配饰区是固定的三列排版，后台历史数据只配了 1 个，这里按 3 个判定完整度，
+      // 不足时统一走补齐（其余卡位仍尊重运营排版），避免页面上只剩一个孤零零的配饰
       const complete = published.bestList.length >= 3
         && published.secondList.length >= 3
-        && published.accessories.length >= 1
+        && published.accessories.length >= 3
 
       let result = published
       let source = 'published'
       if (!complete) {
-        // 素材下架或历史空壳被发布：缺的卡位用实时算法补齐，其余仍尊重运营排版
+        // 素材下架 / 配饰不足 / 历史空壳被发布：缺的卡位用实时算法补齐
         const fallback = await algorithmDailyRecommendation(event)
         const merged = mergeWithFallback(published, fallback)
         result = merged

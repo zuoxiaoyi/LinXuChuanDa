@@ -126,7 +126,7 @@ test('recommendationAutoGen：沿用月末判断范式调用每日建议生成',
   assert.match(autoGen, /generatedMonth/)
 })
 
-test('自动挑选规则：首选色优先、两组不重复、配饰取 1 个', () => {
+test('自动挑选规则：首选色优先、两组不重复、配饰最多取 3 个', () => {
   const nameByCode = {
     white: '白', silver: '银', gray: '灰',
     black: '黑', blue: '蓝', red: '红', commute: '通勤'
@@ -159,6 +159,19 @@ test('自动挑选规则：首选色优先、两组不重复、配饰取 1 个',
   assert.equal(new Set(all).size, 6, '最佳与次佳不能重复')
 })
 
+test('自动挑选规则：配饰按详情页三列给满 3 个，素材不足时如实少给', () => {
+  const fill = buildAutoFill({
+    colorAdvice: { primary: { colors: ['白'] }, secondary: { colors: [] }, avoid: { colors: [] } },
+    outfits: [],
+    accessories: ['a1', 'a2', 'a3', 'a4'].map(_id => ({
+      _id, primaryColorCodes: ['white'], priority: 1
+    })),
+    nameByCode: { white: '白' }
+  })
+  assert.equal(fill.accessoryIds.length, 3)
+  assert.equal(new Set(fill.accessoryIds).size, 3)
+})
+
 test('自动挑选规则：素材不足时如实返回，不伪造条目', () => {
   const fill = buildAutoFill({
     colorAdvice: { primary: { colors: ['白'] }, secondary: { colors: [] }, avoid: { colors: [] } },
@@ -169,4 +182,40 @@ test('自动挑选规则：素材不足时如实返回，不伪造条目', () =>
   assert.equal(fill.bestOutfits.length, 1)
   assert.equal(fill.secondaryOutfits.length, 0)
   assert.deepEqual(fill.accessoryIds, [])
+})
+
+test('每日建议：表格撑满容器（弹性列），不再只占半屏', () => {
+  assert.match(recommendationsPage, /<el-table[^>]*width="100%"/s)
+  assert.match(recommendationsPage, /label="日期" min-width="120"/)
+  assert.match(recommendationsPage, /label="创建时间" min-width="170"/)
+  assert.match(recommendationsPage, /label="操作" width="170" fixed="right"/)
+})
+
+test('每日建议：日期范围筛选透传且与状态筛选共用同一入口', () => {
+  assert.match(recommendationsPage, /v-model="query\.range"/)
+  assert.match(recommendationsPage, /type="daterange"/)
+  assert.match(recommendationsPage, /@change="onFilterChange"/)
+  assert.match(recommendationsPage, /startDate: query\.range\?\.\[0\]/)
+  assert.match(recommendationsPage, /endDate: query\.range\?\.\[1\]/)
+  assert.match(recommendationsPage, /function onFilterChange\(\)[\s\S]*query\.page = 1/)
+  assert.match(recommendationsPage, /v-model:page-size="query\.pageSize"/)
+  assert.match(recommendationsPage, /:page-sizes="\[20, 50, 100\]"/)
+  // 云端必须校验日期格式后才拼 command，不能直接透传任意对象
+  assert.match(adminApi, /const datePattern =/)
+  assert.match(adminApi, /safeString\(payload\.startDate \|\| '', 10\)/)
+  assert.match(adminApi, /where\.date = command\.gte\(startDate\)\.and\(command\.lte\(endDate\)\)/)
+})
+
+test('每日建议：页面明确说明发布后控制哪些数据', () => {
+  assert.match(recommendationsPage, /title="发布后控制哪些页面"/)
+  assert.match(recommendationsPage, /控制小程序「穿搭详情」页的最佳 \/ 次佳 6 套穿搭与幸运配饰/)
+  assert.match(recommendationsPage, /宜穿色与干支来自「日历与颜色」/)
+  assert.match(recommendationsPage, /「我的」页简介来自「内容配置」/)
+  assert.match(recommendationsPage, /建议 3 个，对应详情页三列/)
+  assert.match(recommendationsPage, /:multiple-limit="3"/)
+})
+
+test('内容配置：说明文案同步简介已接入「我的」页', () => {
+  assert.match(contentPage, /「我的」页简介同步更新/)
+  assert.match(contentPage, /「分享文案」目前仅供后台留存/)
 })

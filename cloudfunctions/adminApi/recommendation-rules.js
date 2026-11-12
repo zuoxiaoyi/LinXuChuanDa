@@ -2,6 +2,7 @@
 // 背景：早期 generateRecommendations 只写空壳（bestOutfits/secondaryOutfits/accessoryIds 全为空），
 // 而发布接口要求「至少 3 套最佳 + 3 套次佳 + 1 个配饰」，导致批量生成的草稿一条都发不出去。
 // 这里按当日宜穿色从已发布素材库里挑选，生成即可发布，运营仍可在「查看/调整」里人工替换。
+// 配饰按小程序详情页固定三列排版给满 3 个；素材不足时如实少给，由小程序端用算法补齐。
 //
 // 注意：colorAdvice.colors 存的是中文颜色名（白/银/灰），素材的 primaryColorCodes 存的是字典 code
 // （white/silver/gray），所以调用方必须传 nameByCode（字典 code -> 中文名）做转换。
@@ -59,7 +60,7 @@ function buildAutoFill({ colorAdvice, outfits = [], accessories = [], nameByCode
   const used = new Set()
   const bestOutfits = pickTop(outfits, 3, used, colorAdvice, nameByCode)
   const secondaryOutfits = pickTop(outfits, 3, used, colorAdvice, nameByCode)
-  const accessoryIds = pickTop(accessories, 1, new Set(), colorAdvice, nameByCode)
+  const accessoryIds = pickTop(accessories, 3, new Set(), colorAdvice, nameByCode)
     .map(item => item.outfitId)
 
   return { bestOutfits, secondaryOutfits, accessoryIds }

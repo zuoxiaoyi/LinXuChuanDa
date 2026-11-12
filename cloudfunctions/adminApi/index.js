@@ -284,6 +284,21 @@ async function listCollection(
     })
   }
 
+  // 每日建议 / 日历颜色按 'YYYY-MM-DD' 字符串存日期，字典序可直接比较。
+  // 前端日期范围透传 startDate / endDate，严格校验格式后再拼指令，避免任意对象进 command。
+  const datePattern = /^\d{4}-\d{2}-\d{2}$/
+  const startDate = safeString(payload.startDate || '', 10)
+  const endDate = safeString(payload.endDate || '', 10)
+  const validStart = datePattern.test(startDate)
+  const validEnd = datePattern.test(endDate)
+  if (validStart && validEnd && startDate <= endDate) {
+    where.date = command.gte(startDate).and(command.lte(endDate))
+  } else if (validStart) {
+    where.date = command.gte(startDate)
+  } else if (validEnd) {
+    where.date = command.lte(endDate)
+  }
+
   const collection = db.collection(collectionName).where(where)
   const [dataResult, countResult] = await Promise.all([
     collection

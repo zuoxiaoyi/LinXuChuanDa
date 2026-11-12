@@ -89,6 +89,26 @@ function sceneNameFor(entry, index, outfit) {
 }
 
 /**
+ * 详情页是固定的通勤/休闲/度假三列，靠 list.find(o => o.sceneName === 列头) 取卡片。
+ * 后台自动填充按颜色打分，不保证场景互斥（实测同一天三条 scene 都是「通勤」或「人工调整」），
+ * 若原样输出就会有两列 find 不到 → 显示「未创建」。这里保证前三套各占一个不同的标准场景，
+ * 优先尊重后台指定，冲突时补到尚未占用的列，绝不引入三列之外的新名字。
+ */
+function claimScene(preferred, used, index) {
+  if (!used.has(preferred)) {
+    used.add(preferred)
+    return preferred
+  }
+  const free = DEFAULT_SCENES.find(name => !used.has(name))
+  if (free) {
+    used.add(free)
+    return free
+  }
+  // 超过 3 套时循环复用，多出来的套数仍进相册预览，但不会多开列
+  return DEFAULT_SCENES[index % DEFAULT_SCENES.length]
+}
+
+/**
  * 按后台排好的顺序展开成完整素材对象。
  * docs 由调用方先做 normalizeDoc（兼容历史 data 子对象），这里只做纯转换。
  */
@@ -99,6 +119,7 @@ function expandPublishedDay({ doc, outfitDocs = [], accessoryDocs = [] }) {
   const used = new Set()
   const expand = entries => {
     const picked = []
+    const sceneUsed = new Set()
     toArray(entries).forEach(entry => {
       const id = toId(entry)
       const outfit = outfitsById.get(id)
@@ -106,7 +127,11 @@ function expandPublishedDay({ doc, outfitDocs = [], accessoryDocs = [] }) {
       used.add(id)
       picked.push({
         ...outfit,
-        sceneName: sceneNameFor(entry, picked.length, outfit)
+        sceneName: claimScene(
+          sceneNameFor(entry, picked.length, outfit),
+          sceneUsed,
+          picked.length
+        )
       })
     })
     return picked
@@ -134,7 +159,7 @@ function expandPublishedDay({ doc, outfitDocs = [], accessoryDocs = [] }) {
  * 完整快照不会混入任何算法结果，运营排版 100% 生效。
  * @returns {{bestList: Array, secondList: Array, accessories: Array, source: 'published'|'mixed'}}
  */
-function mergeWithFallback(published, fallback, minimum = { best: 3, second: 3, accessory: 1 }) {
+function mergeWithFallback(published, fallback, minimum = { best: 3, second: 3, accessory: 3 }) {
   const fill = (primary, backup, min) => {
     const list = [...primary]
     const ids = new Set(list.map(item => item._id))
