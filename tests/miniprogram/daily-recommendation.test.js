@@ -61,3 +61,15 @@ test('getOutfits 云函数提供每日推荐模式', () => {
   assert.match(getOutfits, /accessories/)
   assert.match(getOutfits, /status:\s*'published'/)
 })
+
+test('每日推荐优先读后台已发布快照，实时算法兜底且 await 不漏异常', () => {
+  assert.match(getOutfits, /dailyRecommendations/)
+  assert.match(getOutfits, /pickPublishedDay/)
+  assert.match(getOutfits, /expandPublishedDayFromDb/)
+  assert.match(getOutfits, /algorithmDailyRecommendation/)
+  assert.match(getOutfits, /mergeWithFallback/)
+  assert.match(getOutfits, /let source = 'published'/)
+  assert.match(getOutfits, /source: 'algorithm'/)
+  assert.match(getOutfits, /return await dailyRecommendation\(event\)/)
+  assert.match(detailJs, /date:\s*this\.data\.dateKey/)
+})

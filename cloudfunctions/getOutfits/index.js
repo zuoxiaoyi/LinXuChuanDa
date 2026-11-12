@@ -3,9 +3,17 @@ const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
 const db = cloud.database()
+const _ = db.command
 const { pickByScene } = require('./recommendation-rules')
 // Skyline 下 <image> 不支持 cloud://，返回前统一换成 https 临时链接
 const { resolveImages } = require('./cloud-urls')
+// 后台「每日建议」发布快照（ID 引用）→ 小程序展示对象（完整素材）
+const {
+  pickPublishedDay,
+  referenceIds,
+  expandPublishedDay,
+  mergeWithFallback
+} = require('./published-recommendation')
 
 const SCENES = [
   { code: 'commute', name: '通勤' },
@@ -52,7 +60,18 @@ function colorTokens(names, colors) {
   return tokens
 }
 
-async function dailyRecommendation(event) {
+async function resolveAllImages(result) {
+  await Promise.all([
+    resolveImages(result.bestList),
+    resolveImages(result.secondList),
+    resolveImages(result.accessories)
+  ])
+  return result
+}
+
+// 兜底：原先的实时算法，按当日宜穿色 + 场景 + 温度从素材库打分挑选。
+// 当天没有「已发布」的每日建议、或快照展开失败时走这里，保证线上永远不空白。
+async function algorithmDailyRecommendation(event) {
   const [colorDict, sceneDict] = await Promise.all([
     dictionaries('color'),
     dictionaries('scene')
@@ -103,13 +122,91 @@ async function dailyRecommendation(event) {
     accessories = []
   }
 
-  await Promise.all([
-    resolveImages(bestList),
-    resolveImages(secondList),
-    resolveImages(accessories)
-  ])
-
   return { bestList, secondList, accessories }
+}
+
+// 按 _id 批量取素材；分批避免单次 in 过长，并兼容历史文档把字段藏在 data 子对象里的情况
+async function fetchByIds(collection, ids) {
+  if (!ids.length) return []
+  const chunks = []
+  for (let i = 0; i < ids.length; i += 50) {
+    chunks.push(
+      db.collection(collection)
+        .where({ _id: _.in(ids.slice(i, i + 50)) })
+        .limit(50)
+        .get()
+    )
+  }
+  const results = await Promise.all(chunks)
+  return results.flatMap(res => (res.data || []).map(normalizeDoc))
+}
+
+async function findPublishedDay(date) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) return null
+  try {
+    const res = await db.collection('dailyRecommendations')
+      .where({ date, status: 'published' })
+      .limit(10)
+      .get()
+    return pickPublishedDay(res.data, date)
+  } catch (err) {
+    // 集合不存在 / 权限异常不能让小程序白屏，静默回退到实时算法
+    console.warn('[getOutfits] 每日建议快照读取失败，回退实时算法:', err && err.message)
+    return null
+  }
+}
+
+async function expandPublishedDayFromDb(doc) {
+  const { outfitIds, accessoryIds } = referenceIds(doc)
+  const [outfitDocs, accessoryDocs] = await Promise.all([
+    fetchByIds('outfits', outfitIds),
+    fetchByIds('accessories', accessoryIds)
+  ])
+  return expandPublishedDay({ doc, outfitDocs, accessoryDocs })
+}
+
+/**
+ * 每日推荐统一入口：后台已发布的每日建议优先，实时算法兜底。
+ * detail 页早就把 date 传进来了却一直没用，这里正好按日期取快照，小程序端零改动。
+ * source 仅用于联调核对：published=完全按后台排版 / mixed=快照缺位已补齐 / algorithm=未发布。
+ */
+async function dailyRecommendation(event) {
+  const date = String(event.date || '')
+  const doc = await findPublishedDay(date)
+
+  if (doc) {
+    try {
+      const published = await expandPublishedDayFromDb(doc)
+      const complete = published.bestList.length >= 3
+        && published.secondList.length >= 3
+        && published.accessories.length >= 1
+
+      let result = published
+      let source = 'published'
+      if (!complete) {
+        // 素材下架或历史空壳被发布：缺的卡位用实时算法补齐，其余仍尊重运营排版
+        const fallback = await algorithmDailyRecommendation(event)
+        const merged = mergeWithFallback(published, fallback)
+        result = merged
+        source = merged.source
+      }
+      await resolveAllImages(result)
+      return {
+        bestList: result.bestList,
+        secondList: result.secondList,
+        accessories: result.accessories,
+        source,
+        date,
+        ruleVersion: doc.ruleVersion || ''
+      }
+    } catch (err) {
+      console.warn('[getOutfits] 已发布快照展开失败，回退实时算法:', err && err.message)
+    }
+  }
+
+  const fallback = await algorithmDailyRecommendation(event)
+  await resolveAllImages(fallback)
+  return { ...fallback, source: 'algorithm', date, ruleVersion: '' }
 }
 
 async function listOutfits(event) {
@@ -135,9 +232,10 @@ async function listOutfits(event) {
 exports.main = async (event = {}) => {
   try {
     if (event.mode === 'dailyRecommendation') {
-      return dailyRecommendation(event)
+      // 必须 await：否则 async 分支抛错会绕过这里的 try/catch 变成 unhandled rejection
+      return await dailyRecommendation(event)
     }
-    return listOutfits(event)
+    return await listOutfits(event)
   } catch (err) {
     console.error('获取穿搭失败:', err)
     return event.mode === 'dailyRecommendation'
