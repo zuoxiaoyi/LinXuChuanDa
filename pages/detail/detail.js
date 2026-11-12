@@ -3,72 +3,12 @@ const { toDisplayUrl } = require('../../utils/cloudfile')
 const { orderPreviewColumns } = require('../../utils/preview-order')
 const { withShare, isSinglePageMode } = require('../../utils/share')
 const { isAdGateEnabled } = require('../../utils/ad-gate')
+// 颜色徽标映射抽到共享模块：日签海报页同样需要「颜色名 → 徽标底色」
+const { toArray, toColorBadges } = require('../../utils/color-badges')
+const { normalizeDateKey, daysFromToday } = require('../../utils/date-key')
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 const DEFAULT_SCENES = ['通勤', '休闲', '度假']
-
-const COLOR_BADGE_MAP = {
-  green: { name: '绿', bgColor: '#4f9660' },
-  cyan: { name: '青', bgColor: '#459b94' },
-  red: { name: '红', bgColor: '#d34e44' },
-  purple: { name: '紫', bgColor: '#8a68a0' },
-  orange: { name: '橙', bgColor: '#e58c35' },
-  yellow: { name: '黄', bgColor: '#e1bc4a' },
-  brown: { name: '棕', bgColor: '#9d704b' },
-  coffee: { name: '咖', bgColor: '#7a5335' },
-  white: { name: '白', bgColor: '#fffaf1', borderColor: '#d8c8aa' },
-  silver: { name: '银', bgColor: '#c8c8c8' },
-  gray: { name: '灰', bgColor: '#9a9a9a' },
-  black: { name: '黑', bgColor: '#24231f', textColor: '#fff' },
-  blue: { name: '蓝', bgColor: '#4879a9', textColor: '#fff' }
-}
-
-const COLOR_ALIASES = {
-  lv: 'green',
-  绿: 'green',
-  qing: 'cyan',
-  青: 'cyan',
-  hong: 'red',
-  红: 'red',
-  zi: 'purple',
-  紫: 'purple',
-  cheng: 'orange',
-  橙: 'orange',
-  huang: 'yellow',
-  黄: 'yellow',
-  zong: 'brown',
-  棕: 'brown',
-  ka: 'coffee',
-  咖: 'coffee',
-  bai: 'white',
-  白: 'white',
-  yin: 'silver',
-  银: 'silver',
-  hui: 'gray',
-  灰: 'gray',
-  hei: 'black',
-  黑: 'black',
-  lan: 'blue',
-  蓝: 'blue'
-}
-
-function toArray(value) {
-  if (Array.isArray(value)) return value.filter(Boolean)
-  if (typeof value === 'string') return value.split(/[,，、]/).map(item => item.trim()).filter(Boolean)
-  return []
-}
-
-function toColorBadges(colors = []) {
-  return toArray(colors).map(color => {
-    const matched = COLOR_BADGE_MAP[COLOR_ALIASES[color] || color]
-    return {
-      name: matched?.name || color,
-      bgColor: matched?.bgColor || '#eadfc9',
-      borderColor: matched?.borderColor || 'rgba(104, 75, 32, .22)',
-      textColor: matched?.textColor || '#5d4728'
-    }
-  })
-}
 
 function formatDate(date) {
   return [
@@ -230,8 +170,17 @@ Page(withShare({
       return
     }
 
-    const dateIndex = Math.max(0, Math.min(6, Number(options.dateIndex) || 0))
-    const redirectUrl = `/pages/detail/detail?dateIndex=${dateIndex}`
+    // 深链日期：分享/日签海报二维码 scene=d=YYYYMMDD，或 ?date=YYYY-MM-DD。
+    // 只接受规范日期并映射到本周 0~6 窗口，窗口外（历史海报晚扫）回落到今天。
+    let dateIndex = Math.max(0, Math.min(6, Number(options.dateIndex) || 0))
+    const sceneQuery = decodeURIComponent(String(options.scene || ''))
+    const sceneDate = (sceneQuery.match(/(?:^|[&;])d=(\d{8})/) || [])[1]
+    const deepDate = normalizeDateKey(options.date) || normalizeDateKey(sceneDate)
+    if (deepDate) {
+      const diff = daysFromToday(deepDate)
+      if (Number.isFinite(diff) && diff >= 0 && diff <= MAX_DATE_INDEX) dateIndex = diff
+    }
+    const redirectUrl = `/pages/detail/detail?dateIndex=${dateIndex}${deepDate ? `&date=${deepDate}` : ''}`
     if (!isLoggedIn() && !timelineMode) {
       this.setData({ loading: false })
       goToLogin(redirectUrl)
@@ -436,6 +385,13 @@ Page(withShare({
       return
     }
     this.loadDailyOutfits()
+  },
+
+  // 生成当日「今日穿搭日签」海报（保存相册 → 朋友圈/视频号/公众号日更素材）
+  onGoPoster() {
+    if (this.data.singleMode) return
+    const dateKey = this.data.dateKey || formatDate(new Date())
+    wx.navigateTo({ url: `/pages/poster/poster?date=${dateKey}` })
   },
 
   // 微信胶囊属原生层，永远盖在 webview 内容之上，关闭键必须放到它正下方。

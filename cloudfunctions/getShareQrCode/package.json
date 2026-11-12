@@ -1,0 +1,9 @@
+{
+  "name": "getShareQrCode",
+  "version": "1.0.0",
+  "description": "生成今日穿搭日签海报用小程序码（wxacode.getUnlimited）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "latest"
+  }
+}

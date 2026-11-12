@@ -84,6 +84,22 @@ page {
   opacity: .32;
 }
 
+/* 日签入口：金色胶囊，生成当日海报用于朋友圈/视频号日更 */
+.poster-entry {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 56rpx;
+  padding: 0 22rpx;
+  border-radius: 28rpx;
+  background: #3d3529;
+  color: #f0dfb9;
+  font-size: 24rpx;
+  font-weight: 600;
+  box-shadow: 0 3rpx 10rpx rgba(61, 53, 41, .22);
+}
+
 .date-subtitle {
   color: #a3947a;
   font-size: 21rpx;

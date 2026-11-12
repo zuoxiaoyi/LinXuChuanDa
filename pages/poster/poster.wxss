@@ -1,0 +1,110 @@
+/* 今日穿搭日签页：canvas 预览 + 保存/跳转操作 */
+.poster-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24rpx 24rpx 60rpx;
+  box-sizing: border-box;
+  background: #f6ecd8;
+}
+
+.state-container {
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20rpx;
+  color: #8d806b;
+  font-size: 25rpx;
+}
+
+.state-icon {
+  width: 58rpx;
+  height: 58rpx;
+}
+
+.retry-button {
+  margin: 6rpx 0 0;
+  padding: 0 34rpx;
+  height: 62rpx;
+  line-height: 62rpx;
+  border: 1rpx solid #b99c6b;
+  border-radius: 32rpx;
+  background: #fffaf0;
+  color: #795a2c;
+  font-size: 24rpx;
+}
+
+.retry-button::after {
+  border: none;
+}
+
+.lx-spinner {
+  width: 56rpx;
+  height: 56rpx;
+  border: 5rpx solid rgba(176, 138, 77, .25);
+  border-top-color: #b08a4d;
+  border-radius: 50%;
+  animation: lx-spin .8s linear infinite;
+}
+
+@keyframes lx-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 海报画布：白卡承托 + 轻投影，突出「这是一张可保存的海报」 */
+.poster-canvas-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 20rpx;
+  border-radius: 24rpx;
+  background: #fffdf7;
+  box-shadow: 0 10rpx 34rpx rgba(104, 75, 32, .14);
+}
+
+.poster-canvas {
+  display: block;
+  border-radius: 12rpx;
+}
+
+.poster-actions {
+  width: 100%;
+  display: flex;
+  gap: 20rpx;
+  margin-top: 30rpx;
+}
+
+.poster-btn {
+  flex: 1;
+  margin: 0;
+  height: 84rpx;
+  line-height: 84rpx;
+  border-radius: 42rpx;
+  border: 1rpx solid #b99c6b;
+  background: #fffaf0;
+  color: #795a2c;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.poster-btn::after {
+  border: none;
+}
+
+.poster-btn--primary {
+  background: #3d3529;
+  border-color: #3d3529;
+  color: #f6ecd8;
+}
+
+.poster-tip {
+  margin-top: 24rpx;
+  max-width: 640rpx;
+  color: #8b806f;
+  font-size: 22rpx;
+  line-height: 1.7;
+  text-align: center;
+}

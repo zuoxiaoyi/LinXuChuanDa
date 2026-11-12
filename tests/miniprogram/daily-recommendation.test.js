@@ -18,7 +18,8 @@ test('详情页按日期颜色和天气读取每日推荐', () => {
 })
 
 test('详情页展示左侧色系列表且不再覆盖图片右上角色标', () => {
-  assert.match(detailJs, /COLOR_BADGE_MAP/)
+  // 颜色徽标映射已抽到 utils/color-badges.js（日签页共享），页面只引用不复制
+  assert.match(detailJs, /require\('\.\.\/\.\.\/utils\/color-badges'\)/)
   assert.match(detailJs, /DEFAULT_SCENES/)
   assert.match(detailJs, /toSceneColumns/)
   assert.doesNotMatch(detailJs, /colorBadge/)

@@ -1,0 +1,46 @@
+<navigation-bar
+  wx:if="{{!singlePageMode}}"
+  title="今日穿搭日签"
+  back="{{true}}"
+  color="#3d3529"
+  background="#fffdf7"
+></navigation-bar>
+
+<view class="poster-page">
+  <view class="state-container" wx:if="{{loading}}">
+    <view class="lx-spinner" style="border-top-color:#b08a4d"></view>
+    <text>正在生成今日日签...</text>
+  </view>
+
+  <view class="state-container" wx:elif="{{error}}">
+    <image class="state-icon" src="/images/icons/warning.png" mode="aspectFit" />
+    <text>{{error}}</text>
+    <button class="retry-button" bindtap="onRetry">重新加载</button>
+  </view>
+
+  <block wx:else>
+    <view class="poster-canvas-wrap">
+      <canvas
+        id="posterCanvas"
+        type="2d"
+        class="poster-canvas"
+        style="width:{{canvasW}}px;height:{{canvasH}}px"
+      ></canvas>
+    </view>
+
+    <view class="poster-actions">
+      <button
+        class="poster-btn poster-btn--primary"
+        loading="{{saving}}"
+        bindtap="onSavePoster"
+      >保存到相册</button>
+      <button
+        wx:if="{{!singlePageMode}}"
+        class="poster-btn"
+        bindtap="onGoDetail"
+      >看今日搭配</button>
+    </view>
+
+    <text class="poster-tip">保存或截图后可发朋友圈 / 视频号 / 公众号配图；好友扫海报上的小程序码可直达当日穿搭</text>
+  </block>
+</view>

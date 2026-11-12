@@ -23,6 +23,9 @@
         <text class="date-subtitle">{{singleMode ? '已收藏的单套穿搭' : '今日场景穿搭'}}</text>
       </view>
       <view class="date-nav" wx:if="{{!singleMode}}">
+        <view class="poster-entry" catchtap="onGoPoster" wx:if="{{!singlePageMode}}">
+          <text>日签</text>
+        </view>
         <view class="date-nav-btn {{dateIndex <= 0 ? 'is-disabled' : ''}}" catchtap="onPrevDay">‹</view>
         <view class="date-nav-btn {{dateIndex >= 6 ? 'is-disabled' : ''}}" catchtap="onNextDay">›</view>
       </view>

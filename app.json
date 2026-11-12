@@ -5,6 +5,7 @@
     "pages/login/login",
     "pages/legal/legal",
     "pages/detail/detail",
+    "pages/poster/poster",
     "pages/mine/mine"
   ],
   "window": {
