@@ -1,6 +1,7 @@
 const { isLoggedIn, goToLogin } = require('../../utils/auth')
 const { ensurePrivacyAuthorize } = require('../../utils/privacy')
 const { withShare, isSinglePageMode } = require('../../utils/share')
+const { isAdGateEnabled } = require('../../utils/ad-gate')
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 
@@ -101,7 +102,8 @@ Page(withShare({
         month: date.getMonth() + 1,
         week: `周${WEEKDAYS[date.getDay()]}`,
         label: index === 0 ? '今天' : index === 1 ? '明天' : '',
-        isLocked: index >= 3
+        // 未开流量主（UV 未达 500）时 7 天全开放，不显示锁
+        isLocked: isAdGateEnabled() && index >= 3
       })
     }
     return list
@@ -172,8 +174,8 @@ Page(withShare({
   },
 
   initRewardedVideoAd() {
-    // 朋友圈单页模式禁用 wx.createRewardedVideoAd
-    if (isSinglePageMode()) return
+    // 朋友圈单页模式禁用 wx.createRewardedVideoAd；未开流量主时不创建广告实例
+    if (isSinglePageMode() || !isAdGateEnabled()) return
     const adUnitId = getApp().globalData.rewardedVideoAdUnitId
     if (!adUnitId || !wx.createRewardedVideoAd) return
     this.rewardedVideoAd = wx.createRewardedVideoAd({ adUnitId })
@@ -192,6 +194,8 @@ Page(withShare({
   },
 
   refreshUnlockStatus() {
+    // 门槛关闭时 7 天全开放，跳过云端解锁状态查询（省一次云函数调用）
+    if (!isAdGateEnabled()) return
     if (!isLoggedIn() || !this.data.dateList.length) return
     const windowStart = this.data.dateList[0].date
     wx.cloud.callFunction({
@@ -202,7 +206,7 @@ Page(withShare({
       const unlocked = new Set(res.result.unlockedDates || [])
       const dateList = this.data.dateList.map(item => ({
         ...item,
-        isLocked: item.index >= 3 && !unlocked.has(item.date)
+        isLocked: isAdGateEnabled() && item.index >= 3 && !unlocked.has(item.date)
       }))
       this.setData({
         dateList,
@@ -334,16 +338,19 @@ Page(withShare({
   },
 
   onUnlockWeekByAd(index) {
+    // 保险：门槛关闭时就算残留锁态也直接放行，不弹任何广告弹窗
+    if (!isAdGateEnabled()) {
+      this.applyDateSelection(index)
+      return
+    }
     if (!isLoggedIn()) {
       goToLogin('/pages/index/index')
       return
     }
     wx.showModal({
       title: '解锁未来四天',
-      content: this.rewardedVideoAd
-        ? '完整观看一次激励视频后，可永久解锁本周后四天穿搭。'
-        : '当前版本限时开放，点击后可永久解锁本周后四天穿搭。',
-      confirmText: this.rewardedVideoAd ? '看广告解锁' : '立即解锁',
+      content: '完整观看一次激励视频后，可永久解锁本周后四天穿搭。',
+      confirmText: '看广告解锁',
       success: res => {
         if (!res.confirm) return
         this.showUnlockAd(index)
@@ -352,21 +359,17 @@ Page(withShare({
   },
 
   showUnlockAd(index) {
+    this.pendingUnlockIndex = index
+    // 不再提供「不看广告直接解锁」的开发兜底；广告实例缺失时如实提示
     if (!this.rewardedVideoAd) {
-      this.freeUnlockWeek(index)
+      wx.showToast({ title: '广告暂不可用，请稍后再试', icon: 'none' })
       return
     }
-    this.pendingUnlockIndex = index
     this.rewardedVideoAd.show().catch(() => {
       this.rewardedVideoAd.load()
         .then(() => this.rewardedVideoAd.show())
         .catch(() => wx.showToast({ title: '广告加载失败', icon: 'none' }))
     })
-  },
-
-  freeUnlockWeek(index) {
-    this.pendingUnlockIndex = index
-    this.completeAdUnlock(`dev-free-unlock-${Date.now()}`)
   },
 
   completeAdUnlock(adEventId) {
@@ -418,9 +421,16 @@ Page(withShare({
   },
 
   onShareAppMessage() {
+    const dateText = this.data.selectedDay?.dateText || '今日'
     return {
-      title: `${this.data.selectedDay.dateText}灵序穿搭建议`,
+      title: `${dateText}穿什么颜色？灵序穿搭每日顺时建议`,
       path: '/pages/index/index'
     }
+  }
+}, {
+  // 朋友圈标题与好友卡片一致，带日期与用户真实会搜的长尾词
+  timeline() {
+    const dateText = this.data.selectedDay?.dateText || '今日'
+    return { title: `${dateText}穿什么颜色？灵序穿搭每日顺时建议` }
   }
 }))

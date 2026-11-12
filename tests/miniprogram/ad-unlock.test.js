@@ -22,8 +22,8 @@ test('unlockOutfit 改为按日期记录永久解锁', () => {
   assert.doesNotMatch(unlockFn, /UNLOCK_COST\s*=\s*10/)
 })
 
-test('home falls back to free unlock when reward ad is unavailable', () => {
-  assert.match(indexJs, /freeUnlockWeek/)
-  assert.match(indexJs, /dev-free-unlock/)
-  assert.match(indexJs, /限时开放/)
+test('未开流量主时收掉假门槛：广告不可用不放行，也不留免费解锁后门', () => {
+  assert.match(indexJs, /isAdGateEnabled/)
+  assert.doesNotMatch(indexJs, /freeUnlockWeek|dev-free-unlock|限时开放/)
+  assert.match(indexJs, /广告暂不可用，请稍后再试/)
 })

@@ -60,12 +60,12 @@
         >{{todayChecked ? '已签到' : (isLogin ? '签到 +1' : '登录签到')}}</view>
         <text
           class="bonus-entry"
-          wx:if="{{todayChecked && !todayBonusClaimed}}"
+          wx:if="{{adGateEnabled && todayChecked && !todayBonusClaimed}}"
           bindtap="onWatchCheckInAd"
         >
           看广告翻倍
         </text>
-        <text class="bonus-claimed" wx:elif="{{todayBonusClaimed}}">翻倍已领</text>
+        <text class="bonus-claimed" wx:elif="{{adGateEnabled && todayBonusClaimed}}">翻倍已领</text>
         <text
           class="bonus-entry makeup-entry"
           wx:if="{{canMakeUp}}"

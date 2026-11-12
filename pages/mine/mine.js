@@ -2,6 +2,7 @@ const app = getApp()
 const { isLoggedIn, requireLogin } = require('../../utils/auth')
 const { toDisplayUrl, safePlaceholder, isDefaultWxAvatar } = require('../../utils/cloudfile')
 const { withShare, isSinglePageMode } = require('../../utils/share')
+const { isAdGateEnabled } = require('../../utils/ad-gate')
 
 Page(withShare({
   data: {
@@ -11,6 +12,8 @@ Page(withShare({
     todayBonusClaimed: false,
     streakCount: 0,
     canMakeUp: false,
+    // 未开流量主时隐藏「看广告翻倍」入口，避免出现点了领不到的假门槛
+    adGateEnabled: false,
     collectedList: [],
     loading: false,
     error: '',
@@ -27,6 +30,7 @@ Page(withShare({
     this.profileLoaded = false
     this.lastScrollTop = 0
     this.savedScrollTop = 0
+    this.setData({ adGateEnabled: isAdGateEnabled() })
     this.initRewardedVideoAd()
   },
 
@@ -222,6 +226,8 @@ Page(withShare({
   },
 
   showBonusOffer() {
+    // 未开流量主时不弹「看广告翻倍」，避免点了却领不到的空头承诺
+    if (!isAdGateEnabled()) return
     wx.showModal({
       title: '签到成功 +1积分',
       content: '观看一段激励视频，可随机获得2～5倍签到积分。倍数越高，抽中概率越低。',
@@ -234,8 +240,8 @@ Page(withShare({
   },
 
   initRewardedVideoAd() {
-    // 朋友圈单页模式禁用 wx.createRewardedVideoAd
-    if (isSinglePageMode()) return
+    // 朋友圈单页模式禁用 wx.createRewardedVideoAd；未开流量主时不创建广告实例
+    if (isSinglePageMode() || !isAdGateEnabled()) return
     const adUnitId = app.globalData.rewardedVideoAdUnitId
     if (!adUnitId || !wx.createRewardedVideoAd) return
 
@@ -261,6 +267,8 @@ Page(withShare({
   },
 
   async onWatchCheckInAd() {
+    // 入口已在 WXML 隐藏，这里再兜一层，防止旧版本缓存触发空头广告
+    if (!isAdGateEnabled()) return
     if (!requireLogin('登录后才能领取签到翻倍奖励')) return
     if (!this.data.todayChecked) {
       wx.showToast({ title: '请先完成今日签到', icon: 'none' })
@@ -272,12 +280,7 @@ Page(withShare({
     }
     this.pendingAdAction = 'bonus'
     if (!this.rewardedVideoAd) {
-      wx.showModal({
-        title: '广告位尚未配置',
-        content: '签到抽奖算法已经接入。配置微信激励视频广告位ID后即可完整观看并领取奖励。',
-        showCancel: false,
-        confirmText: '知道了'
-      })
+      wx.showToast({ title: '广告暂不可用，请稍后再试', icon: 'none' })
       return
     }
 
@@ -346,13 +349,13 @@ Page(withShare({
       wx.showToast({ title: '暂无可补签日期', icon: 'none' })
       return
     }
+    // 未开流量主时补签直接可用（本来也无广告可看），不给用户看开发态提示
+    if (!isAdGateEnabled()) {
+      await this.claimMakeUp()
+      return
+    }
     if (!this.rewardedVideoAd) {
-      wx.showModal({
-        title: '广告位尚未配置',
-        content: '补签功能已接入，配置微信激励视频广告位 ID 后即可观看并补签昨日。',
-        showCancel: false,
-        confirmText: '知道了'
-      })
+      wx.showToast({ title: '广告暂不可用，请稍后再试', icon: 'none' })
       return
     }
     this.pendingAdAction = 'makeup'

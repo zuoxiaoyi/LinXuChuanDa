@@ -17,7 +17,8 @@
 
 const FRIEND_IMAGE = '/images/common/share-card.png'        // 5:4，转发好友
 const TIMELINE_IMAGE = '/images/common/share-timeline.png'  // 1:1，分享朋友圈
-const DEFAULT_TITLE = '灵序穿搭 · 顺时穿搭，每天穿出好气色'
+// 分享标题带用户真实会搜的长尾词，提升卡片点击与搜一搜召回；不含任何分享奖励表述
+const DEFAULT_TITLE = '今天穿什么颜色？灵序穿搭每日顺时建议'
 const SINGLE_PAGE_SCENE = 1154
 
 /** 是否由朋友圈打开（小程序单页模式） */

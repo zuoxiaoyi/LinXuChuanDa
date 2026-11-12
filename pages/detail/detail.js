@@ -1,6 +1,7 @@
 const { isLoggedIn, goToLogin, requireLogin } = require('../../utils/auth')
 const { toDisplayUrl } = require('../../utils/cloudfile')
 const { withShare, isSinglePageMode } = require('../../utils/share')
+const { isAdGateEnabled } = require('../../utils/ad-gate')
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 const DEFAULT_SCENES = ['通勤', '休闲', '度假']
@@ -93,6 +94,7 @@ function toSceneColumns(list, sceneNames, showSceneName) {
 }
 
 // 与首页 buildDateList 保持一致：前 3 天免费，后 4 天需解锁
+// 注意：仅当广告门槛开启（已开流量主且广告位 ID 已填）时该限制才生效
 const FREE_DAYS = 3
 const MAX_DATE_INDEX = 6
 
@@ -162,8 +164,8 @@ function buildPreviewList(bestList, secondList) {
 function shareTitleFor(page) {
   const { singleMode, singleOutfit, dateText } = page.data
   return singleMode
-    ? `${singleOutfit.title || '这套穿搭'} · 灵序穿搭`
-    : `${dateText || '今日'}穿搭灵感 · 灵序穿搭`
+    ? `${singleOutfit.title || '这套穿搭'}｜灵序穿搭每日顺时建议`
+    : `${dateText || '今日'}穿什么颜色？灵序穿搭每日顺时建议`
 }
 
 Page(withShare({
@@ -485,8 +487,8 @@ Page(withShare({
   },
 
   initRewardedVideoAd() {
-    // 朋友圈单页模式禁用 wx.createRewardedVideoAd
-    if (isSinglePageMode()) return
+    // 朋友圈单页模式禁用 wx.createRewardedVideoAd；未开流量主时不创建广告实例
+    if (isSinglePageMode() || !isAdGateEnabled()) return
     const adUnitId = getApp().globalData.rewardedVideoAdUnitId
     if (!adUnitId || !wx.createRewardedVideoAd) return
     this.rewardedVideoAd = wx.createRewardedVideoAd({ adUnitId })
@@ -505,6 +507,8 @@ Page(withShare({
   },
 
   refreshUnlockStatus() {
+    // 门槛关闭时 7 天全开放，跳过云端解锁状态查询
+    if (!isAdGateEnabled()) return Promise.resolve([])
     const windowStart = this.data.windowStartDate
     if (!windowStart || !isLoggedIn()) return Promise.resolve([])
     return wx.cloud.callFunction({
@@ -526,7 +530,9 @@ Page(withShare({
   },
 
   isDateLocked(index, dateKey) {
-    return index >= FREE_DAYS && !(this.data.unlockedDates || []).includes(dateKey)
+    return isAdGateEnabled()
+      && index >= FREE_DAYS
+      && !(this.data.unlockedDates || []).includes(dateKey)
   },
 
   async switchToDate(index) {
@@ -577,16 +583,16 @@ Page(withShare({
   },
 
   promptUnlock(index) {
+    // 保险：门槛关闭时不弹广告弹窗（正常路径下 isDateLocked 已返回 false）
+    if (!isAdGateEnabled()) return
     if (!isLoggedIn()) {
       goToLogin(`/pages/detail/detail?dateIndex=${index}`)
       return
     }
     wx.showModal({
       title: '解锁未来四天',
-      content: this.rewardedVideoAd
-        ? '完整观看一次激励视频后，可永久解锁本周后四天穿搭。'
-        : '当前版本限时开放，点击后可永久解锁本周后四天穿搭。',
-      confirmText: this.rewardedVideoAd ? '看广告解锁' : '立即解锁',
+      content: '完整观看一次激励视频后，可永久解锁本周后四天穿搭。',
+      confirmText: '看广告解锁',
       success: res => {
         if (res.confirm) this.showUnlockAd(index)
       }
@@ -595,8 +601,9 @@ Page(withShare({
 
   showUnlockAd(index) {
     this.pendingUnlockIndex = index
+    // 不再提供「不看广告直接解锁」的开发兜底；广告实例缺失时如实提示
     if (!this.rewardedVideoAd) {
-      this.freeUnlockWeek()
+      wx.showToast({ title: '广告暂不可用，请稍后再试', icon: 'none' })
       return
     }
     this.rewardedVideoAd.show().catch(() => {
@@ -604,10 +611,6 @@ Page(withShare({
         .then(() => this.rewardedVideoAd.show())
         .catch(() => wx.showToast({ title: '广告加载失败', icon: 'none' }))
     })
-  },
-
-  freeUnlockWeek() {
-    this.completeAdUnlock(`dev-free-unlock-${Date.now()}`)
   },
 
   completeAdUnlock(adEventId) {

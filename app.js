@@ -12,8 +12,12 @@ App({
     isLogin: false,    // 登录状态
     points: 0,         // 当前积分
     openid: '',        // 用户openid
-    // 在公众平台创建激励视频广告位后填写，例如 adunit-xxxxxxxx
-    rewardedVideoAdUnitId: ''
+    // 激励视频广告位 ID：开通流量主并创建广告位后填写，例如 adunit-xxxxxxxx
+    rewardedVideoAdUnitId: '',
+    // 广告门槛总开关。流量主需累计 UV > 500（以官方最新规则为准），未开通前必须为 false：
+    // 关闭时 7 天穿搭全开放、隐藏「看广告」入口，避免出现点了直接放行的假门槛。
+    // 达标后填入上面的 ID 并把本项改为 true，即可恢复原有解锁 / 翻倍 / 补签链路。
+    adGateEnabled: false
   },
 
   onLaunch() {

@@ -43,7 +43,9 @@ test('详情页日期箭头复用首页解锁与广告逻辑', () => {
   assert.match(js, /action: 'getWeekStatus'/)
   assert.match(js, /action: 'adUnlockWeek'/)
   assert.match(js, /createRewardedVideoAd/)
-  assert.match(js, /dev-free-unlock/)
+  // 未开流量主阶段：解锁逻辑由统一开关控制，不再保留 dev 免费解锁后门
+  assert.match(js, /isAdGateEnabled/)
+  assert.doesNotMatch(js, /dev-free-unlock/)
   assert.match(js, /dateForIndex\(index\)/)
   assert.match(js, /isDateLocked\(index, dateKey\)/)
 })
