@@ -605,7 +605,7 @@ onMounted(async () => {
 
 <template>
   <PageHeader
-    eyebrow="Outfit library"
+    eyebrow="素材资料库"
     title="穿搭素材"
     description="维护可参与算法匹配的穿搭图片、场景、五行、颜色、季节与天气标签。"
   >

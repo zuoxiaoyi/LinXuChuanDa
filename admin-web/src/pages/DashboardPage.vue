@@ -48,7 +48,7 @@ onMounted(load)
 
 <template>
   <PageHeader
-    eyebrow="Operations overview"
+    eyebrow="数据总览"
     title="运营概览"
     description="先看内容是否按时发布，再看用户、签到、收藏与积分是否存在异常。"
   >

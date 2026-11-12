@@ -31,6 +31,13 @@ const menuItems = [
 
 const activePath = computed(() => route.path)
 
+const roleLabels: Record<string, string> = {
+  super_admin: '超级管理员',
+  editor: '内容编辑',
+  operator: '运营人员',
+  viewer: '只读访客'
+}
+
 async function logout() {
   await auth.logout()
   await router.replace('/login')
@@ -64,7 +71,7 @@ async function logout() {
         <span class="status-dot" />
         <div>
           <strong>{{ auth.admin?.displayName }}</strong>
-          <small>{{ auth.admin?.role }}</small>
+          <small>{{ roleLabels[auth.admin?.role || ''] || auth.admin?.role || '未登录' }}</small>
         </div>
         <el-button text class="logout-button" @click="logout">退出</el-button>
       </div>
@@ -72,7 +79,7 @@ async function logout() {
 
     <main class="main-panel">
       <div class="top-ribbon">
-        <span>LINXU / OPERATIONS</span>
+        <span>灵序穿搭 · 运营控制台</span>
         <span>{{ new Date().toLocaleDateString('zh-CN') }}</span>
       </div>
       <div class="page-container">

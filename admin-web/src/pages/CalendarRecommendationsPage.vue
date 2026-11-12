@@ -73,7 +73,7 @@ onMounted(load)
 
 <template>
   <PageHeader
-    eyebrow="Calendar & colors"
+    eyebrow="农历与色彩"
     title="日历与颜色"
     description="先核对农历、干支和五行颜色，再由后续推荐流程叠加城市天气与穿搭。"
   >

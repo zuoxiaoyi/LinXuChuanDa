@@ -59,7 +59,7 @@ onMounted(load)
 
 <template>
   <PageHeader
-    eyebrow="Operation settings"
+    eyebrow="参数管理"
     title="系统配置"
     description="只开放低风险运营参数；密钥、任意脚本和数据库权限不在Web后台维护。"
   >

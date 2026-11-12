@@ -12,6 +12,7 @@ const {
   dictionaryMap,
   uniqueCodes
 } = require('./material-rules')
+const { buildAutoFill } = require('./recommendation-rules')
 
 const app = cloudbase.init({
   env: cloudbase.SYMBOL_CURRENT_ENV
@@ -78,8 +79,10 @@ const ACTION_PERMISSIONS = {
   'recommendations.list': 'recommendations.read',
   'recommendations.get': 'recommendations.read',
   'recommendations.generate': 'recommendations.write',
+  'recommendations.autoFill': 'recommendations.write',
   'recommendations.save': 'recommendations.write',
   'recommendations.publish': 'recommendations.publish',
+  'recommendations.batchPublish': 'recommendations.publish',
   'recommendations.unpublish': 'recommendations.publish',
   'calendarRecommendations.list': 'recommendations.read',
   'calendarRecommendations.get': 'recommendations.read',
@@ -786,31 +789,109 @@ async function publicCalendarRange(payload) {
   }
 }
 
+// 生成每日建议时一次性备好素材库与字典，避免逐天重复查库。
+// 颜色建议里的 colors 是中文名，素材里的颜色是字典 code，这里同时产出 code -> 中文名映射。
+async function loadAutoFillContext() {
+  const [dictionaries, outfitResult, accessoryResult] = await Promise.all([
+    enabledDictionaries(),
+    db.collection('outfits').where({
+      status: 'published',
+      isDeleted: command.neq(true)
+    }).limit(100).get(),
+    db.collection('accessories').where({
+      status: 'published',
+      isDeleted: command.neq(true)
+    }).limit(100).get()
+  ])
+
+  const nameByCode = {}
+  const elementColors = {}
+  for (const item of dictionaries || []) {
+    if (!item.code) continue
+    nameByCode[item.code] = item.name
+    if (item.type === 'color' && ELEMENT_NAME_BY_CODE[item.elementCode]) {
+      const element = ELEMENT_NAME_BY_CODE[item.elementCode]
+      if (!elementColors[element]) elementColors[element] = []
+      if (!elementColors[element].includes(item.name)) elementColors[element].push(item.name)
+    }
+  }
+
+  return {
+    nameByCode,
+    elementColors,
+    outfits: outfitResult.data || [],
+    accessories: accessoryResult.data || []
+  }
+}
+
 async function generateRecommendations(payload, admin, requestId) {
   const dates = validatedDateRange(payload.startDate, payload.endDate)
   const ruleVersion = requiredString(payload.ruleVersion, '规则版本', 30)
-  let generated = 0
-  let skipped = 0
 
+  const [existingResult, calendarResult, context] = await Promise.all([
+    db.collection('dailyRecommendations')
+      .where({ date: command.in(dates), isDeleted: command.neq(true) })
+      .limit(1000).get(),
+    db.collection('dailyCalendarRecommendations')
+      .where({ date: command.in(dates), isDeleted: command.neq(true) })
+      .limit(1000).get(),
+    loadAutoFillContext()
+  ])
+
+  const existingMap = new Map((existingResult.data || []).map(item => [item.date, item]))
+  const calendarMap = new Map((calendarResult.data || []).map(item => [item.date, item]))
+  // 勾选「覆盖已有草稿」时，只回填未发布且未人工调整过的记录，绝不覆盖运营成果
+  const overwriteDraft = payload.overwriteDraft === true
+
+  const drafts = []
+  const updates = []
+  let skipped = 0
   for (const date of dates) {
-    const existing = await db.collection('dailyRecommendations').where({
-      date,
-      isDeleted: command.neq(true)
-    }).limit(1).get()
-    if (existing.data.length) {
-      skipped += 1
+    // 优先用后台「日历与颜色」已生成/人工覆盖的版本，缺失才按同源算法实时补算
+    const stored = calendarMap.get(date)
+    const adviceDoc = (stored && stored.calendar && stored.colorAdvice)
+      ? stored
+      : buildCalendarRecommendation(date, ruleVersion, context.elementColors)
+    const fill = buildAutoFill({
+      colorAdvice: adviceDoc.colorAdvice,
+      outfits: context.outfits,
+      accessories: context.accessories,
+      nameByCode: context.nameByCode
+    })
+    const content = {
+      calendar: adviceDoc.calendar || {},
+      colorAdvice: adviceDoc.colorAdvice,
+      ...fill
+    }
+    const existing = existingMap.get(date)
+
+    if (existing) {
+      const canOverwrite = overwriteDraft
+        && existing.status !== 'published'
+        && existing.manualOverride !== true
+      if (!canOverwrite) {
+        skipped += 1
+        continue
+      }
+      updates.push({
+        id: existing._id,
+        patch: {
+          ...content,
+          ruleVersion,
+          updatedAt: db.serverDate(),
+          updatedBy: admin.uid,
+          version: safeNumber(existing.version, 1, 1) + 1
+        }
+      })
       continue
     }
-    await db.collection('dailyRecommendations').add({
+
+    drafts.push({
       date,
-      calendar: {},
-      colorAdvice: { primary: [], secondary: [], avoid: [] },
+      ...content,
       weatherSnapshot: null,
       dressingAdvice: { text: '', tags: [] },
       skincareAdvice: { text: '' },
-      bestOutfits: [],
-      secondaryOutfits: [],
-      accessoryIds: [],
       ruleVersion,
       generationMode: 'algorithm',
       manualOverride: false,
@@ -823,17 +904,34 @@ async function generateRecommendations(payload, admin, requestId) {
       isDeleted: false,
       deletedAt: null
     })
-    generated += 1
   }
+
+  // 5 条一批并发写入，避免整月串行写把云函数拖到超时
+  for (let i = 0; i < drafts.length; i += 5) {
+    await Promise.all(drafts.slice(i, i + 5).map(doc =>
+      db.collection('dailyRecommendations').add(doc)
+    ))
+  }
+  for (let i = 0; i < updates.length; i += 5) {
+    await Promise.all(updates.slice(i, i + 5).map(item =>
+      db.collection('dailyRecommendations').doc(item.id).update(item.patch)
+    ))
+  }
+
+  // 素材库不足时如实回报，前端提示运营先补素材，避免「生成了但发不出去」
+  const unfilled = [...drafts, ...updates.map(item => item.patch)].filter(doc =>
+    doc.bestOutfits.length < 3 || doc.secondaryOutfits.length < 3 || doc.accessoryIds.length < 1
+  ).length
+
   await writeAudit(
     admin,
     'generate',
     'dailyRecommendations',
     '',
-    `${payload.startDate}~${payload.endDate}, generated=${generated}`,
+    `${payload.startDate}~${payload.endDate}, generated=${drafts.length}, updated=${updates.length}`,
     requestId
   )
-  return { generated, skipped }
+  return { generated: drafts.length, updated: updates.length, skipped, unfilled }
 }
 
 async function generateCalendarRecommendations(payload, admin, requestId) {
@@ -917,20 +1015,43 @@ async function autoGenerateMonth(payload, requestId) {
   return result
 }
 
+// 「查看/调整」抽屉里的一键挑选：只算结果不写库，运营确认后由 save 落库。
+async function autoFillRecommendation(payload) {
+  const date = requiredString(payload.date, '日期', 10)
+  const context = await loadAutoFillContext()
+  const calendarResult = await db.collection('dailyCalendarRecommendations')
+    .where({ date, isDeleted: command.neq(true) })
+    .limit(1).get()
+  const stored = calendarResult.data[0]
+  const colorAdvice = (stored && stored.colorAdvice)
+    ? stored.colorAdvice
+    : buildCalendarRecommendation(date, '2026.1', context.elementColors).colorAdvice
+
+  return buildAutoFill({
+    colorAdvice,
+    outfits: context.outfits,
+    accessories: context.accessories,
+    nameByCode: context.nameByCode
+  })
+}
+
+// 单条发布与批量发布共用同一套内容完整性校验，避免两套规则漂移。
+function missingPublishFields(doc) {
+  const missing = []
+  if ((doc.bestOutfits || []).length < 3) missing.push('最佳穿搭不足3套')
+  if ((doc.secondaryOutfits || []).length < 3) missing.push('次佳穿搭不足3套')
+  if ((doc.accessoryIds || []).length < 1) missing.push('缺少幸运配饰')
+  return missing
+}
+
 async function publishRecommendation(payload, admin, requestId) {
   const current = await getDocument('dailyRecommendations', payload.id)
   if (safeNumber(payload.version, 0, 0) !== current.version) {
     throw new ApiError('VERSION_CONFLICT', '建议版本已变化，请刷新后重试')
   }
-  if (
-    (current.bestOutfits || []).length < 3
-    || (current.secondaryOutfits || []).length < 3
-    || (current.accessoryIds || []).length < 1
-  ) {
-    throw new ApiError(
-      'VALIDATION_ERROR',
-      '发布前至少配置3套最佳、3套次佳和1个幸运配饰'
-    )
+  const missing = missingPublishFields(current)
+  if (missing.length) {
+    throw new ApiError('VALIDATION_ERROR', `发布前需补齐：${missing.join('、')}`)
   }
   await db.collection('dailyRecommendations').doc(payload.id).update({
     status: 'published',
@@ -941,6 +1062,95 @@ async function publishRecommendation(payload, admin, requestId) {
   })
   await writeAudit(admin, 'publish', 'dailyRecommendations', payload.id, current.date, requestId)
   return { published: 1, version: current.version + 1 }
+}
+
+// 批量发布：逐条独立校验，单条失败不影响其它记录，返回可展示的明细。
+async function batchPublishRecommendations(payload, admin, requestId) {
+  const ids = Array.isArray(payload.ids)
+    ? [...new Set(payload.ids.filter(id => typeof id === 'string' && id))].slice(0, 100)
+    : []
+  if (!ids.length) {
+    throw new ApiError('VALIDATION_ERROR', '请先选择要发布的每日建议')
+  }
+
+  // 一次批量读取 + 分批并发写入：整月 31 天也能在云函数 15 秒超时内跑完
+  const result = await db.collection('dailyRecommendations')
+    .where({ _id: command.in(ids) })
+    .limit(100)
+    .get()
+  const docMap = new Map((result.data || []).map(doc => [doc._id, doc]))
+
+  const details = []
+  const toPublish = []
+  let skipped = 0
+
+  for (const id of ids) {
+    const current = docMap.get(id)
+    if (!current || current.isDeleted) {
+      skipped += 1
+      details.push({ id, ok: false, reason: '记录不存在或已删除' })
+      continue
+    }
+    if (current.status === 'published') {
+      skipped += 1
+      details.push({ id, date: current.date, ok: false, reason: '已发布，无需重复操作' })
+      continue
+    }
+    const missing = missingPublishFields(current)
+    if (missing.length) {
+      skipped += 1
+      details.push({ id, date: current.date, ok: false, reason: missing.join('、') })
+      continue
+    }
+    toPublish.push(id)
+    details.push({ id, date: current.date, ok: true, reason: '已发布' })
+  }
+
+  for (let i = 0; i < toPublish.length; i += 5) {
+    await Promise.all(toPublish.slice(i, i + 5).map(id => {
+      const current = docMap.get(id)
+      return db.collection('dailyRecommendations').doc(id).update({
+        status: 'published',
+        publishAt: db.serverDate(),
+        version: safeNumber(current.version, 1, 1) + 1,
+        updatedAt: db.serverDate(),
+        updatedBy: admin.uid
+      })
+    }))
+  }
+
+  await writeAudit(
+    admin,
+    'publish.batch',
+    'dailyRecommendations',
+    '',
+    `selected=${ids.length}, published=${toPublish.length}, skipped=${skipped}`,
+    requestId
+  )
+  return { published: toPublish.length, skipped, details }
+}
+
+// 定时任务专用：生成次月整月每日建议草稿。
+// 与 calendarRecommendations.autoGenerateMonth 平行，由 recommendationAutoGen 在月末调用。
+async function autoGenerateMonthRecommendations(payload, requestId) {
+  const startDate = requiredString(payload.startDate, '开始日期', 10)
+  const endDate = requiredString(payload.endDate, '结束日期', 10)
+  const ruleVersion = requiredString(payload.ruleVersion, '规则版本', 30)
+  const systemAdmin = { uid: 'system-auto-gen', role: 'system' }
+  const result = await generateRecommendations(
+    { startDate, endDate, ruleVersion },
+    systemAdmin,
+    requestId
+  )
+  await writeAudit(
+    systemAdmin,
+    'generate.auto',
+    'dailyRecommendations',
+    '',
+    `${startDate}~${endDate}, generated=${result.generated}`,
+    requestId
+  )
+  return result
 }
 
 async function dashboardSummary() {
@@ -1195,8 +1405,14 @@ async function route(action, payload, admin, requestId) {
   if (action === 'recommendations.generate') {
     return generateRecommendations(payload, admin, requestId)
   }
+  if (action === 'recommendations.autoFill') {
+    return autoFillRecommendation(payload)
+  }
   if (action === 'recommendations.publish') {
     return publishRecommendation(payload, admin, requestId)
+  }
+  if (action === 'recommendations.batchPublish') {
+    return batchPublishRecommendations(payload, admin, requestId)
   }
   if (action === 'recommendations.unpublish') {
     return setStatus(
@@ -1207,14 +1423,24 @@ async function route(action, payload, admin, requestId) {
     )
   }
   if (action === 'content.save') {
-    const duplicate = await db.collection('contentConfigs').where({
+    const locale = payload.locale || 'zh-CN'
+    let duplicate = await db.collection('contentConfigs').where({
       key: payload.key,
-      locale: payload.locale || 'zh-CN',
+      locale,
       isDeleted: command.neq(true)
     }).limit(1).get()
+    // 历史脏记录把字段包在 data 子对象里；只按顶层 key 查会查不到，
+    // 导致每次保存都新增一条重复记录。这里补一次嵌套字段查询。
+    if (!duplicate.data.length) {
+      duplicate = await db.collection('contentConfigs').where({
+        'data.key': payload.key,
+        'data.locale': locale,
+        isDeleted: command.neq(true)
+      }).limit(1).get()
+    }
     if (!payload._id && duplicate.data.length) {
       payload._id = duplicate.data[0]._id
-      payload.version = duplicate.data[0].version
+      payload.version = duplicate.data[0].version || duplicate.data[0].data?.version
     }
     return saveDocument('contentConfigs', payload, admin, requestId, sanitizeContent)
   }
@@ -1258,6 +1484,15 @@ exports.main = async (event = {}, context = {}) => {
         throw new ApiError('FORBIDDEN', '该操作仅限定时任务调用')
       }
       return success(await autoGenerateMonth(event.payload || {}, requestId), requestId)
+    }
+    if (action === 'recommendations.autoGenerateMonth') {
+      if (event.__timer__ !== true) {
+        throw new ApiError('FORBIDDEN', '该操作仅限定时任务调用')
+      }
+      return success(
+        await autoGenerateMonthRecommendations(event.payload || {}, requestId),
+        requestId
+      )
     }
 
     if (!(action in ACTION_PERMISSIONS)) {

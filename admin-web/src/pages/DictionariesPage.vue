@@ -117,7 +117,7 @@ onMounted(load)
 
 <template>
   <PageHeader
-    eyebrow="Tag dictionaries"
+    eyebrow="基础数据"
     title="标签字典"
     description="统一维护五行、颜色、场景、季节、天气和配饰类型，避免素材出现自由文本脏数据。"
   >

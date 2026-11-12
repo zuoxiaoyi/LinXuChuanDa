@@ -13,6 +13,7 @@ const saving = ref(false)
 const drawerVisible = ref(false)
 const contentFormRef = ref<FormInstance>()
 const list = ref<ContentConfig[]>([])
+const duplicateCount = ref<Record<string, number>>({})
 const form = reactive<ContentConfig>({
   key: 'about',
   title: '',
@@ -33,14 +34,50 @@ const keyLabels: Record<ContentConfig['key'], string> = {
   share_copy: '分享文案'
 }
 
+const statusLabels: Record<string, string> = {
+  draft: '草稿',
+  published: '已发布',
+  disabled: '已停用'
+}
+
+const localeLabels: Record<string, string> = {
+  'zh-CN': '简体中文',
+  'en-US': '英文'
+}
+
+// 早期写入的记录把业务字段包在 row.data 里（CloudBase Web SDK 旧写法）。
+// 顶层字段优先，data 只补缺失；否则编辑保存后旧 data 会反过来覆盖新内容。
 function normalizeContent(row: ContentConfig | any): ContentConfig {
   const data = row?.data && typeof row.data === 'object' ? row.data : {}
-  return {
-    ...row,
+  const merged: any = {
     ...data,
+    ...row,
     _id: row?._id || data._id,
-    version: data.version || row?.version
+    version: row?.version ?? data.version,
+    createdAt: row?.createdAt || data.createdAt,
+    updatedAt: row?.updatedAt || data.updatedAt
   }
+  delete merged.data
+  return merged
+}
+
+// 同一 key 只保留最近更新的一条；历史上重复提交产生的旧记录不重复展示。
+function dedupe(rows: ContentConfig[]) {
+  const grouped = new Map<string, ContentConfig[]>()
+  for (const row of rows) {
+    const key = row.key || '(未知类型)'
+    const group = grouped.get(key) || []
+    group.push(row)
+    grouped.set(key, group)
+  }
+  const counts: Record<string, number> = {}
+  const kept: ContentConfig[] = []
+  for (const [key, group] of grouped) {
+    group.sort((a: any, b: any) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))
+    counts[key] = group.length - 1
+    kept.push(group[0])
+  }
+  return { kept, counts }
 }
 
 async function load() {
@@ -48,9 +85,11 @@ async function load() {
   try {
     const result = await callAdminApi<PageResult<ContentConfig>>('content.list', {
       page: 1,
-      pageSize: 20
+      pageSize: 100
     })
-    list.value = result.list.map(normalizeContent)
+    const { kept, counts } = dedupe(result.list.map(normalizeContent))
+    list.value = kept
+    duplicateCount.value = counts
   } catch (error: any) {
     ElMessage.error(error?.message || '内容配置加载失败')
   } finally {
@@ -102,23 +141,39 @@ onMounted(load)
 
 <template>
   <PageHeader
-    eyebrow="Content configuration"
+    eyebrow="文案与协议"
     title="内容配置"
     description="简介、协议和分享文案由后台维护，小程序保留本地兜底文案。"
   >
     <el-button type="primary" :icon="EditPen" @click="edit()">新增内容</el-button>
   </PageHeader>
 
+  <el-alert
+    class="content-notice"
+    type="info"
+    :closable="false"
+    show-icon
+    title="哪些内容会影响小程序"
+    description="《用户协议》《隐私政策》发布为「已发布」后，小程序「协议」页会优先展示后台版本，未发布时沿用小程序内置兜底文案。「灵序穿搭简介」「分享文案」目前仅供后台留存，小程序端尚未接入，发布与否不影响线上展示。"
+  />
+
   <section class="content-grid" v-loading="loading">
     <article v-for="item in list" :key="item.key" class="surface content-card">
       <div class="content-meta">
-        <span>{{ item.key }}</span>
-        <el-tag :type="item.status === 'published' ? 'success' : 'info'">{{ item.status }}</el-tag>
+        <span>{{ keyLabels[item.key] || item.key }}</span>
+        <el-tag :type="item.status === 'published' ? 'success' : 'info'">
+          {{ statusLabels[item.status] || item.status }}
+        </el-tag>
       </div>
       <h2>{{ item.title || keyLabels[item.key] }}</h2>
       <p>{{ item.content }}</p>
       <div class="content-footer">
-        <small>v{{ item.version || 1 }} · {{ item.locale }}</small>
+        <small>
+          v{{ item.version || 1 }} · {{ localeLabels[item.locale] || item.locale }}
+          <span v-if="duplicateCount[item.key]" class="duplicate-hint">
+            · 另有 {{ duplicateCount[item.key] }} 条重复记录（已折叠）
+          </span>
+        </small>
         <el-button link type="primary" @click="edit(item)">编辑内容</el-button>
       </div>
     </article>
@@ -153,6 +208,10 @@ onMounted(load)
 </template>
 
 <style scoped>
+.content-notice {
+  margin-bottom: 18px;
+}
+
 .content-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -173,9 +232,8 @@ onMounted(load)
 
 .content-meta > span {
   color: var(--gold);
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 10px;
-  letter-spacing: .1em;
+  font-size: 12px;
+  letter-spacing: .04em;
 }
 
 .content-card h2 {
@@ -201,5 +259,9 @@ onMounted(load)
 
 .content-footer small {
   color: #968a79;
+}
+
+.duplicate-hint {
+  color: #b26b3f;
 }
 </style>

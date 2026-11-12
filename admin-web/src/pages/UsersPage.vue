@@ -108,7 +108,7 @@ onMounted(load)
 
 <template>
   <PageHeader
-    eyebrow="Users and points"
+    eyebrow="账户与积分"
     title="用户与积分"
     description="用户资料只读展示；积分必须通过带原因的调整单和积分流水变更。"
   />

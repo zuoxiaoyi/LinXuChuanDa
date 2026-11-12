@@ -87,7 +87,16 @@ export interface DailyRecommendation {
   accessoryIds: string[]
   status: PublishStatus
   version?: number
+  createdAt?: string
   updatedAt?: string
+  calendar?: Record<string, any>
+  colorAdvice?: {
+    primary?: { element?: string; colors?: string[] }
+    secondary?: { element?: string; colors?: string[] }
+    avoid?: { element?: string; colors?: string[] }
+  }
+  dressingAdvice?: { text?: string; tags?: string[] }
+  skincareAdvice?: { text?: string }
 }
 
 export type ElementCode = '木' | '火' | '土' | '金' | '水'

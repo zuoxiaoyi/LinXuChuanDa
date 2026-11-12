@@ -311,7 +311,7 @@ onMounted(async () => {
 
 <template>
   <PageHeader
-    eyebrow="Accessory library"
+    eyebrow="配饰资料库"
     title="幸运配饰"
     description="配饰与五行、颜色和场景建立关联，参与每日详情页的幸运配饰匹配。"
   >
