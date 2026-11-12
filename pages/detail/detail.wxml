@@ -50,6 +50,7 @@
             mode="aspectFit"
             binderror="onSingleCoverError"
             data-id="{{singleOutfit._id || outfitId}}"
+            data-album-index="0"
             bindtap="onOpenPreview"
           />
           <!-- 不用 wx:else：中间还要放脚底阴影，避免条件链被插入节点打断 -->
@@ -119,6 +120,7 @@
                   mode="aspectFit"
                   lazy-load
                   data-id="{{item.item._id}}"
+                  data-album-index="{{item.albumIndex}}"
                   bindtap="onOpenPreview"
                 />
                 <view class="outfit-ground"></view>
@@ -176,6 +178,7 @@
                   mode="aspectFit"
                   lazy-load
                   data-id="{{item.item._id}}"
+                  data-album-index="{{item.albumIndex}}"
                   bindtap="onOpenPreview"
                 />
                 <view class="outfit-ground"></view>
@@ -250,7 +253,7 @@
     bindchange="onPreviewChange"
     duration="220"
   >
-    <swiper-item wx:for="{{previewList}}" wx:key="_id">
+    <swiper-item wx:for="{{previewList}}" wx:key="albumIndex">
       <view class="preview-slide">
         <image
           class="preview-photo"

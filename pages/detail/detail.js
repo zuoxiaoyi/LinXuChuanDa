@@ -1,5 +1,6 @@
 const { isLoggedIn, goToLogin, requireLogin } = require('../../utils/auth')
 const { toDisplayUrl } = require('../../utils/cloudfile')
+const { orderPreviewColumns } = require('../../utils/preview-order')
 const { withShare, isSinglePageMode } = require('../../utils/share')
 const { isAdGateEnabled } = require('../../utils/ad-gate')
 
@@ -153,11 +154,22 @@ function toPreviewItem(outfit, rank) {
   }
 }
 
-function buildPreviewList(bestList, secondList) {
-  return [
-    ...bestList.filter(item => item && item.coverUrl).map(item => toPreviewItem(item, '最佳')),
-    ...secondList.filter(item => item && item.coverUrl).map(item => toPreviewItem(item, '次佳'))
-  ]
+// 相册按「页面可见顺序」构造：第一排左→右 1/2/3，第二排左→右 4/5/6。
+// 不能用 bestList/secondList 原始顺序，它们与场景列顺序并不一致。
+function buildPreviewList(ordered) {
+  return ordered.map(({ outfit, rank, albumIndex }) => ({
+    ...toPreviewItem(outfit, rank),
+    albumIndex
+  }))
+}
+
+function buildPreviewLayout(bestColumns, secondColumns) {
+  const layout = orderPreviewColumns(bestColumns, secondColumns)
+  return {
+    bestColumns: layout.bestColumns,
+    secondColumns: layout.secondColumns,
+    previewList: buildPreviewList(layout.ordered)
+  }
 }
 
 // 分享标题：单套页用穿搭名，每日推荐页用当前日期
@@ -253,7 +265,7 @@ Page(withShare({
       this.setData({
         singleOutfit: outfit,
         previewList: outfit.coverUrl
-          ? [toPreviewItem({ ...outfit, _id: outfit._id || id }, '已收藏')]
+          ? [{ ...toPreviewItem({ ...outfit, _id: outfit._id || id }, '已收藏'), albumIndex: 0 }]
           : [],
         previewIndex: 0
       })
@@ -336,6 +348,10 @@ Page(withShare({
       const bestList = markCollected(outfitRes.result?.bestList)
       const secondList = markCollected(outfitRes.result?.secondList)
       const sceneNames = sceneNamesFor(bestList, secondList)
+      const layout = buildPreviewLayout(
+        toSceneColumns(bestList, sceneNames, true),
+        toSceneColumns(secondList, sceneNames, false)
+      )
 
       this.setData({
         dateText: calendarDay?.calendar
@@ -345,10 +361,10 @@ Page(withShare({
         secondColorBadges: toColorBadges(colorAdvice.secondary?.colors),
         bestList,
         secondList,
-        bestColumns: toSceneColumns(bestList, sceneNames, true),
-        secondColumns: toSceneColumns(secondList, sceneNames, false),
+        bestColumns: layout.bestColumns,
+        secondColumns: layout.secondColumns,
         accessories: Array.isArray(outfitRes.result?.accessories) ? outfitRes.result.accessories : [],
-        previewList: buildPreviewList(bestList, secondList),
+        previewList: layout.previewList,
         previewIndex: 0
       })
     } catch (err) {
@@ -390,11 +406,17 @@ Page(withShare({
       const bestList = updateList(this.data.bestList)
       const secondList = updateList(this.data.secondList)
       const sceneNames = sceneNamesFor(bestList, secondList)
+      // 列对象被重建，albumIndex 必须一起重算，否则收藏后点预览又会退回按 _id 猜编号
+      const layout = buildPreviewLayout(
+        toSceneColumns(bestList, sceneNames, true),
+        toSceneColumns(secondList, sceneNames, false)
+      )
       this.setData({
         bestList,
         secondList,
-        bestColumns: toSceneColumns(bestList, sceneNames, true),
-        secondColumns: toSceneColumns(secondList, sceneNames, false)
+        bestColumns: layout.bestColumns,
+        secondColumns: layout.secondColumns,
+        previewList: layout.previewList
       })
       wx.showToast({
         title: target.isCollected ? '已取消收藏' : '收藏成功',
@@ -449,13 +471,19 @@ Page(withShare({
   },
 
   onOpenPreview(e) {
-    const id = e.currentTarget.dataset.id
+    const dataset = e.currentTarget.dataset || {}
     const list = this.data.previewList
     if (!list.length) return
-    const found = list.findIndex(item => item._id === id)
+    // 优先用点击时随卡片带出来的可见序号；_id 反查只作为旧数据的兜底。
+    // 注意空字符串会被 Number('') 当成 0，必须显式排除，否则旧缓存数据会一律跳到第一张。
+    const raw = dataset.albumIndex
+    let index = (raw === undefined || raw === null || raw === '') ? NaN : Number(raw)
+    if (!Number.isInteger(index) || index < 0 || index >= list.length) {
+      index = list.findIndex(item => item._id === dataset.id)
+    }
     this.setData({
       previewVisible: true,
-      previewIndex: found >= 0 ? found : 0
+      previewIndex: index >= 0 ? index : 0
     })
   },
 
