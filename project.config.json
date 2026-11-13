@@ -84,6 +84,10 @@
       },
       {
         "type": "folder",
+        "value": "scripts"
+      },
+      {
+        "type": "folder",
         "value": "_login_deployed_check"
       },
       {
