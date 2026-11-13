@@ -2,6 +2,8 @@
  * 灵序穿搭 - 小程序入口
  * 功能：初始化云开发环境、全局数据管理
  */
+const { setupAppUpdate } = require('./utils/app-update')
+
 // 云开发初始化
 const CLOUD_ENV = 'cloudbase-d7gr1giub2c847b49'
 
@@ -21,6 +23,9 @@ App({
   },
 
   onLaunch() {
+    // 版本更新检查必须放在最前：下面云能力不支持时会提前 return
+    setupAppUpdate()
+
     // 初始化云开发（Skyline + 新版基础库适配）
     if (!wx.cloud) {
       console.warn('当前基础库不支持云能力，请升级至 2.2.3 以上')
