@@ -55,20 +55,11 @@ Page(withShare({
     loading: true,
     error: '',
     poster: null,
-    saving: false,
-    canvasW: 319,
-    canvasH: 425
+    saving: false
   },
 
   onLoad(options) {
-    const dateKey = resolveDateKey(options)
-    const info = (wx.getWindowInfo && wx.getWindowInfo()) || {}
-    const canvasW = Math.min((info.windowWidth || 375) - 48, 340)
-    this.setData({
-      dateKey,
-      canvasW,
-      canvasH: Math.round(canvasW * 4 / 3)
-    })
+    this.setData({ dateKey: resolveDateKey(options) })
     this.loadPoster()
   },
 
@@ -137,20 +128,29 @@ Page(withShare({
           coverUrl,
           qrUrl: (qrRes && qrRes.qrUrl) || ''
         }
-      }, () => this.initCanvasAndDraw())
+      }, () => this.drawOnCanvasNode())
     } catch (err) {
       console.error('加载今日日签失败:', err)
       this.setData({ loading: false, error: '日签数据加载失败，请稍后重试' })
     }
   },
 
-  initCanvasAndDraw() {
+  /**
+   * canvas 由 CSS 绝对定位铺满「剩余空间」，这里直接取节点实测宽高设置画布像素。
+   * 不再自己算 3:4：画布尺寸 = 屏幕分给它的空间，drawPoster 内部各区块按 w/h 相对布局自适应。
+   * wx:else 刚渲染时节点可能尚未就绪，做有限次重试。
+   */
+  drawOnCanvasNode(retry = 0) {
     const query = this.createSelectorQuery()
     query.select('#posterCanvas').fields({ node: true, size: true })
     query.exec(res => {
       const info = res && res[0]
-      if (!info || !info.node) {
-        console.error('[poster] canvas 节点未就绪')
+      if (!info || !info.node || !info.width || !info.height) {
+        if (retry < 3) {
+          setTimeout(() => this.drawOnCanvasNode(retry + 1), 30)
+        } else {
+          console.error('[poster] canvas 节点未就绪')
+        }
         return
       }
       const canvas = info.node
@@ -182,23 +182,37 @@ Page(withShare({
     const pad = 24
 
     // 头部：深咖底 + 品牌与日期
+    // 四行（品牌 / 标题 / 日期 / 干支）用固定行高堆叠后整体在头部内垂直居中。
+    // headH 维持 0.25·h 不变：既保证窄屏/宽屏都不压字、不越界，也保留下方穿搭封面绘制区。
     const headH = Math.round(h * 0.25)
     ctx.fillStyle = THEME.headBg
     ctx.fillRect(0, 0, w, headH)
     ctx.textAlign = 'center'
+    const brandH = 13, titleH = 25, dateH = 15, ganzhiH = 14
+    const lineGap = 4
+    const blockTop = 6
+    const brandY0 = blockTop + brandH
+    const titleY0 = brandY0 + lineGap + titleH
+    const dateY0 = titleY0 + lineGap + dateH
+    const ganzhiY0 = dateY0 + lineGap + ganzhiH
+    const shift = Math.max(0, Math.round((headH - ganzhiY0) / 2))
+    const brandY = brandY0 + shift
+    const titleY = titleY0 + shift
+    const dateY = dateY0 + shift
+    const ganzhiY = ganzhiY0 + shift
     ctx.fillStyle = THEME.headSub
     ctx.font = '13px sans-serif'
-    ctx.fillText(BRAND, w / 2, 30)
+    ctx.fillText(BRAND, w / 2, brandY)
     ctx.fillStyle = THEME.headText
-    ctx.font = 'bold 26px sans-serif'
-    ctx.fillText('今日穿搭日签', w / 2, 62)
+    ctx.font = 'bold 25px sans-serif'
+    ctx.fillText('今日穿搭日签', w / 2, titleY)
     ctx.fillStyle = THEME.headSub
     ctx.font = '15px sans-serif'
-    ctx.fillText(`${poster.monthDay} · ${poster.weekday}`, w / 2, 94)
+    ctx.fillText(`${poster.monthDay} · ${poster.weekday}`, w / 2, dateY)
     if (poster.ganZhi) {
       ctx.fillStyle = THEME.accent
       ctx.font = 'bold 14px sans-serif'
-      ctx.fillText(`${poster.ganZhi}日 · 顺时而穿`, w / 2, headH - 18)
+      ctx.fillText(`${poster.ganZhi}日 · 顺时而穿`, w / 2, ganzhiY)
     }
 
     // 主体：暖米底

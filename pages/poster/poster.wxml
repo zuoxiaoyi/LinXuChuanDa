@@ -24,7 +24,6 @@
         id="posterCanvas"
         type="2d"
         class="poster-canvas"
-        style="width:{{canvasW}}px;height:{{canvasH}}px"
       ></canvas>
     </view>
 

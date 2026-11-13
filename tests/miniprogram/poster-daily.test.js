@@ -95,3 +95,20 @@ test('getShareQrCode 云函数：scene 合法性校验 + checkPath 关闭 + 云�
   assert.match(qrFn, /success:\s*false/)
   assert.match(qrFn, /errMsg/)
 })
+
+test('日签页布局：page 根锁一屏 + canvas 铺满剩余空间 + 底部固定（防超屏/白边回归）', () => {
+  const posterWxss = readFileSync(join(root, 'pages/poster/poster.wxss'), 'utf8')
+  // 自定义导航栏在 page 文档流内：必须由 page 根做 100vh flex，内容区用 flex:1；
+  // 若内容区自己再写 100vh，会与导航栏叠加导致超屏滚动
+  assert.match(posterWxss, /^page\s*\{[^}]*height:\s*100vh/m, 'page 根需锁 100vh')
+  assert.match(posterWxss, /navigation-bar\s*\{[^}]*flex-shrink:\s*0/s, '导航栏不可被压缩')
+  assert.match(posterWxss, /\.poster-page\s*\{[^}]*flex:\s*1/s, '内容区吃掉剩余高度')
+  assert.match(posterWxss, /\.poster-canvas\s*\{[^}]*position:\s*absolute/s, 'canvas 绝对定位铺满容器')
+  assert.match(posterWxss, /\.poster-actions\s*\{[^}]*flex-shrink:\s*0/s, '按钮固定贴底')
+  assert.match(posterWxss, /\.poster-tip\s*\{[^}]*flex-shrink:\s*0/s, '文案不被压缩截断')
+  // 画布尺寸交给 CSS，JS 不再写死 px 或算 3:4（否则高屏又会出现上下白边）
+  assert.doesNotMatch(posterJs, /canvasW/, '不应再由 JS 计算画布宽度')
+  assert.doesNotMatch(posterJs, /3\s*\/\s*4/, '不应再强制 3:4 缩放')
+  assert.match(posterJs, /drawOnCanvasNode\(/, '按节点实测尺寸绘制')
+  assert.doesNotMatch(posterWxml, /style="width:\{\{canvasW\}\}/, 'wxml 不再绑定写死尺寸')
+})
