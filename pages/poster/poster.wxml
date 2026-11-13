@@ -15,7 +15,7 @@
   <view class="state-container" wx:elif="{{error}}">
     <image class="state-icon" src="/images/icons/warning.png" mode="aspectFit" />
     <text>{{error}}</text>
-    <button class="retry-button" bindtap="onRetry">重新加载</button>
+    <view class="retry-button" hover-class="retry-button--hover" bindtap="onRetry">重新加载</view>
   </view>
 
   <block wx:else>
@@ -28,16 +28,22 @@
     </view>
 
     <view class="poster-actions">
-      <button
+      <!-- 用 view 而非原生 button：小程序 button 的 line-height 垂直居中不可靠，
+           实测文字会整体偏下；view + flex 才能保证水平/垂直都居中 -->
+      <view
         class="poster-btn poster-btn--primary"
-        loading="{{saving}}"
+        hover-class="poster-btn--hover"
         bindtap="onSavePoster"
-      >保存到相册</button>
-      <button
+      >
+        <view class="btn-spinner" wx:if="{{saving}}"></view>
+        <text>{{saving ? '保存中...' : '保存到相册'}}</text>
+      </view>
+      <view
         wx:if="{{!singlePageMode}}"
         class="poster-btn"
+        hover-class="poster-btn--hover"
         bindtap="onGoDetail"
-      >看今日搭配</button>
+      >看今日搭配</view>
     </view>
 
     <text class="poster-tip">保存或截图后可发朋友圈 / 视频号 / 公众号配图；好友扫海报上的小程序码可直达当日穿搭</text>

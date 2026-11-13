@@ -51,7 +51,10 @@ navigation-bar {
   margin: 6rpx 0 0;
   padding: 0 34rpx;
   height: 62rpx;
-  line-height: 62rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   border: 1rpx solid #b99c6b;
   border-radius: 32rpx;
   background: #fffaf0;
@@ -59,8 +62,8 @@ navigation-bar {
   font-size: 24rpx;
 }
 
-.retry-button::after {
-  border: none;
+.retry-button--hover {
+  opacity: .85;
 }
 
 .lx-spinner {
@@ -107,9 +110,15 @@ navigation-bar {
 
 .poster-btn {
   flex: 1;
+  min-width: 0;
   margin: 0;
   height: 84rpx;
-  line-height: 84rpx;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
   border-radius: 42rpx;
   border: 1rpx solid #b99c6b;
   background: #fffaf0;
@@ -118,14 +127,24 @@ navigation-bar {
   font-weight: 600;
 }
 
-.poster-btn::after {
-  border: none;
+.poster-btn--hover {
+  opacity: .86;
 }
 
 .poster-btn--primary {
   background: #3d3529;
   border-color: #3d3529;
   color: #f6ecd8;
+}
+
+.btn-spinner {
+  width: 26rpx;
+  height: 26rpx;
+  margin-right: 10rpx;
+  border: 3rpx solid rgba(246, 236, 216, .35);
+  border-top-color: #f6ecd8;
+  border-radius: 50%;
+  animation: lx-spin .8s linear infinite;
 }
 
 .poster-tip {

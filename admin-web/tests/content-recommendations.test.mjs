@@ -159,6 +159,57 @@ test('自动挑选规则：首选色优先、两组不重复、配饰最多取 3
   assert.equal(new Set(all).size, 6, '最佳与次佳不能重复')
 })
 
+test('自动挑选规则：次佳组只认辅助宜穿色，主色素材不得挤进次佳', () => {
+  // 复刻 2026-11-13 线上回归：主色（红/紫/橙）素材共 4 套 > 最佳 3 套，
+  // 第 4 套红曾带着 +200 挤进次佳，详情页「绿/青」栏下出现红色素材
+  const nameByCode = {
+    red: '红', purple: '紫', orange: '橙', green: '绿', cyan: '青',
+    yellow: '黄', brown: '棕', coffee: '咖', commute: '通勤'
+  }
+  const colorAdvice = {
+    primary: { colors: ['红', '紫', '橙'] },
+    secondary: { colors: ['绿', '青'] },
+    avoid: { colors: ['黄', '棕', '咖'] }
+  }
+  const withScene = (_id, code) => ({ _id, primaryColorCodes: [code], sceneCodes: ['commute'] })
+  const outfits = [
+    withScene('o-orange', 'orange'),
+    withScene('o-red1', 'red'),
+    withScene('o-purple', 'purple'),
+    withScene('o-red2', 'red'),
+    withScene('g1', 'green'),
+    withScene('g2', 'green'),
+    withScene('g3', 'green'),
+    withScene('o-brown', 'brown')
+  ]
+  const fill = buildAutoFill({ colorAdvice, outfits, accessories: [], nameByCode })
+  const secondIds = fill.secondaryOutfits.map(item => item.outfitId)
+  assert.deepEqual(secondIds, ['g1', 'g2', 'g3'], '次佳必须全部命中绿/青')
+  assert.ok(!secondIds.some(id => id.startsWith('o-red')), '红素材不能出现在次佳')
+  assert.equal(fill.bestOutfits.length + fill.secondaryOutfits.length, 6)
+  assert.equal(new Set([...fill.bestOutfits, ...fill.secondaryOutfits].map(i => i.outfitId)).size, 6)
+})
+
+test('自动挑选规则：次佳素材不足时按 目标色 → 中性 → 忌穿色 顺序兜底', () => {
+  const nameByCode = { red: '红', green: '绿', blue: '蓝', brown: '棕', commute: '通勤' }
+  const colorAdvice = {
+    primary: { colors: ['红'] },
+    secondary: { colors: ['绿'] },
+    avoid: { colors: ['棕'] }
+  }
+  const withScene = (_id, code) => ({ _id, primaryColorCodes: [code], sceneCodes: ['commute'] })
+  const outfits = [
+    withScene('best-r1', 'red'), withScene('best-r2', 'red'), withScene('best-r3', 'red'),
+    withScene('avoid-brown', 'brown'), withScene('neutral-blue', 'blue'),
+    withScene('target-green', 'green')
+  ]
+  const fill = buildAutoFill({ colorAdvice, outfits, accessories: [], nameByCode })
+  assert.deepEqual(
+    fill.secondaryOutfits.map(item => item.outfitId),
+    ['target-green', 'neutral-blue', 'avoid-brown']
+  )
+})
+
 test('自动挑选规则：配饰按详情页三列给满 3 个，素材不足时如实少给', () => {
   const fill = buildAutoFill({
     colorAdvice: { primary: { colors: ['白'] }, secondary: { colors: [] }, avoid: { colors: [] } },

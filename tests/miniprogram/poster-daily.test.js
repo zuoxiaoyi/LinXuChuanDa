@@ -112,3 +112,15 @@ test('日签页布局：page 根锁一屏 + canvas 铺满剩余空间 + 底部�
   assert.match(posterJs, /drawOnCanvasNode\(/, '按节点实测尺寸绘制')
   assert.doesNotMatch(posterWxml, /style="width:\{\{canvasW\}\}/, 'wxml 不再绑定写死尺寸')
 })
+
+test('日签页按钮：view + flex 双向居中（原生 button 的 line-height 会偏下）', () => {
+  const posterWxss = readFileSync(join(root, 'pages/poster/poster.wxss'), 'utf8')
+  // 真机实测：button 设 height=line-height 后文字仍整体偏下约 10px，改用 view 承载
+  assert.doesNotMatch(posterWxml, /<button[^>]*poster-btn/s, '底部按钮不应再用原生 button')
+  assert.match(posterWxml, /hover-class="poster-btn--hover"/, '需保留点击反馈')
+  assert.match(posterWxml, /saving \? '保存中\.\.\.' : '保存到相册'/, '保存中态由文案 + spinner 表达')
+  assert.match(posterWxss, /\.poster-btn\s*\{[^}]*display:\s*flex/s)
+  assert.match(posterWxss, /\.poster-btn\s*\{[^}]*align-items:\s*center/s, '垂直居中')
+  assert.match(posterWxss, /\.poster-btn\s*\{[^}]*justify-content:\s*center/s, '水平居中')
+  assert.match(posterWxss, /\.poster-btn\s*\{[^}]*line-height:\s*1[^0-9]/s, '不再依赖 line-height 顶高居中')
+})
